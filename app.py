@@ -8,11 +8,19 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-# Use /opt/render/project/src for database on Render, local directory otherwise
-if os.environ.get('RENDER'):
-    DATABASE = '/opt/render/project/src/bjj_coaching.db'
-else:
-    DATABASE = 'bjj_coaching.db'
+# Database path - use current directory
+DATABASE = 'bjj_coaching.db'
+
+# Initialize database before first request
+@app.before_request
+def initialize_database():
+    if not os.path.exists(DATABASE):
+        print(f"Database does not exist. Creating at {DATABASE}")
+        init_db()
+        print("Database created successfully!")
+        
+    # Remove this function after first run to avoid checking every request
+    app.before_request_funcs[None].remove(initialize_database)
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
