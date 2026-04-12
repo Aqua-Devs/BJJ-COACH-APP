@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Registreren - BJJ Coach{% endblock %}
+
+{% block content %}
+<div style="max-width: 400px; margin: 40px auto; background: #1a1a1a; padding: 30px; border-radius: 15px; border: 1px solid #2d2d2d; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+    <h2 style="color: #ff6b35; margin-bottom: 20px; text-align: center;">Account Aanmaken</h2>
+    
+    <p style="color: #888; font-size: 14px; text-align: center; margin-bottom: 25px;">
+        Vul de gegevens in om een nieuw coach-account aan te vragen.
+    </p>
+
+    <form method="POST">
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 8px; color: #aaa; font-size: 14px;">E-mailadres</label>
+            <input type="email" name="email" required placeholder="naam@gym.nl" 
+                   style="width: 100%; padding: 12px; border-radius: 8px; background: #0a0a0a; color: white; border: 1px solid #3d3d3d; outline: none;">
+        </div>
+
+        <div style="margin-bottom: 15px;">
+            <label style="display: block; margin-bottom: 8px; color: #aaa; font-size: 14px;">Wachtwoord</label>
+            <input type="password" name="password" required placeholder="••••••••"
+                   style="width: 100%; padding: 12px; border-radius: 8px; background: #0a0a0a; color: white; border: 1px solid #3d3d3d; outline: none;">
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <label style="display: block; margin-bottom: 8px; color: #aaa; font-size: 14px;">Bevestig Wachtwoord</label>
+            <input type="password" name="password_confirm" required placeholder="••••••••"
+                   style="width: 100%; padding: 12px; border-radius: 8px; background: #0a0a0a; color: white; border: 1px solid #3d3d3d; outline: none;">
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%; padding: 14px; font-weight: bold;">Account Registreren</button>
+    </form>
+
+    <div style="margin-top: 20px; text-align: center; font-size: 14px;">
+        <a href="{{ url_for('login') }}" style="color: #ff6b35; text-decoration: none;">Terug naar Inloggen</a>
+    </div>
+</div>
+{% endblock %}
