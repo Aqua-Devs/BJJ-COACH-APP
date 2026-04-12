@@ -8,7 +8,11 @@ from functools import wraps
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
 
-DATABASE = 'bjj_coaching.db'
+# Use /opt/render/project/src for database on Render, local directory otherwise
+if os.environ.get('RENDER'):
+    DATABASE = '/opt/render/project/src/bjj_coaching.db'
+else:
+    DATABASE = 'bjj_coaching.db'
 
 def get_db():
     conn = sqlite3.connect(DATABASE)
@@ -1016,6 +1020,12 @@ def update_mastery(student_id):
     return redirect(url_for('student_mastery', student_id=student_id))
 
 if __name__ == '__main__':
+    # Ensure database exists
     if not os.path.exists(DATABASE):
+        print(f"Creating database at {DATABASE}")
         init_db()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+        print("Database created successfully!")
+    
+    # Get port from environment (Render uses PORT env variable)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=False, host='0.0.0.0', port=port)
