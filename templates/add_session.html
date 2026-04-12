@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Nieuwe Sessie - {{ student.name }}{% endblock %}
+
+{% block header %}Nieuwe Sessie{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Annuleren</a>
+
+<div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #ff6b35; font-size: 24px;">{{ student.name }}</h2>
+</div>
+
+{% if injuries %}
+<div class="injuries-warning" style="margin-bottom: 20px;">
+    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">⚠️ Actieve Blessures</div>
+    {% for injury in injuries %}
+    <div style="font-size: 14px; margin-top: 6px;">
+        <strong>{{ injury.injury_type }}</strong> - {{ injury.affected_area }}
+        {% if injury.restricted_techniques %}
+        <div style="color: #ff6b35; margin-top: 4px;">Vermijd: {{ injury.restricted_techniques }}</div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<form method="POST" action="{{ url_for('add_session', student_id=student.id) }}" id="sessionForm">
+    <label for="date">Datum</label>
+    <input type="date" id="date" name="date" value="{{ today }}" required>
+    
+    <label for="techniques">Technieken</label>
+    <input type="text" 
+           id="techniques" 
+           name="techniques" 
+           placeholder="armbar, closed guard, sweep..."
+           autocomplete="off"
+           list="technique-suggestions">
+    <datalist id="technique-suggestions">
+        {% for suggestion in suggestions %}
+        <option value="{{ suggestion }}">
+        {% endfor %}
+    </datalist>
+    <small style="color: #888; display: block; margin-top: 5px;">Gescheiden door komma's</small>
+    
+    <label style="margin-top: 25px;">Type Notitie</label>
+    <div class="note-type-buttons">
+        <button type="button" class="note-type-btn" data-type="goed">
+            <div style="font-size: 24px; margin-bottom: 5px;">💚</div>
+            <div style="font-size: 13px;">Goed</div>
+        </button>
+        <button type="button" class="note-type-btn" data-type="focus">
+            <div style="font-size: 24px; margin-bottom: 5px;">⚠️</div>
+            <div style="font-size: 13px;">Focus</div>
+        </button>
+        <button type="button" class="note-type-btn" data-type="algemeen">
+            <div style="font-size: 24px; margin-bottom: 5px;">📝</div>
+            <div style="font-size: 13px;">Algemeen</div>
+        </button>
+    </div>
+    
+    <input type="hidden" id="notes_type" name="notes_type" value="">
+    
+    <div id="notes-container" style="display: none;">
+        <label for="notes_text">Notitie</label>
+        <textarea id="notes_text" name="notes_text" placeholder="Type hier je notitie..."></textarea>
+    </div>
+    
+    <button type="submit" class="btn" id="submitBtn" disabled>Sessie Opslaan</button>
+</form>
+
+<script>
+    const noteTypeButtons = document.querySelectorAll('.note-type-btn');
+    const notesContainer = document.getElementById('notes-container');
+    const notesTypeInput = document.getElementById('notes_type');
+    const notesTextArea = document.getElementById('notes_text');
+    const submitBtn = document.getElementById('submitBtn');
+    const techniquesInput = document.getElementById('techniques');
+    
+    // Handle note type selection
+    noteTypeButtons.forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Remove active class from all buttons
+            noteTypeButtons.forEach(b => b.classList.remove('active'));
+            
+            // Add active class to clicked button
+            this.classList.add('active');
+            
+            // Set hidden input value
+            const type = this.getAttribute('data-type');
+            notesTypeInput.value = type;
+            
+            // Show notes container
+            notesContainer.style.display = 'block';
+            notesTextArea.focus();
+            
+            // Enable submit button
+            submitBtn.disabled = false;
+        });
+    });
+    
+    // Basic autocomplete for techniques (show suggestions as you type)
+    const suggestions = {{ suggestions|tojson }};
+    
+    techniquesInput.addEventListener('input', function() {
+        const value = this.value.toLowerCase();
+        const lastComma = value.lastIndexOf(',');
+        const currentTech = value.substring(lastComma + 1).trim();
+        
+        // Enable submit if either techniques or note type is filled
+        submitBtn.disabled = !(this.value.trim() || notesTypeInput.value);
+    });
+    
+    // Allow submit if techniques are filled
+    document.getElementById('sessionForm').addEventListener('submit', function(e) {
+        if (!techniquesInput.value.trim() && !notesTypeInput.value) {
+            e.preventDefault();
+            alert('Vul minimaal technieken of een notitie in');
+        }
+    });
+    
+    // Enable submit button when techniques are typed
+    techniquesInput.addEventListener('input', function() {
+        if (this.value.trim()) {
+            submitBtn.disabled = false;
+        } else if (!notesTypeInput.value) {
+            submitBtn.disabled = true;
+        }
+    });
+</script>
+
+<style>
+    .injuries-warning {
+        background: #2d1a1a;
+        border: 2px solid #d32f2f;
+        padding: 15px;
+        border-radius: 12px;
+        color: #ffcccc;
+    }
+</style>
+{% endblock %}

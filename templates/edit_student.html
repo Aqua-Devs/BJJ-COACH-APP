@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Bewerk {{ student.name }} - BJJ Coach{% endblock %}
+
+{% block header %}Bewerk Student{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Annuleren</a>
+
+<form method="POST" action="{{ url_for('edit_student', student_id=student.id) }}">
+    <label for="name">Naam</label>
+    <input type="text" id="name" name="name" value="{{ student.name }}" required autofocus>
+    
+    <label for="gym_id">Gym</label>
+    <select id="gym_id" name="gym_id">
+        <option value="">-- Geen Gym --</option>
+        {% for gym in gyms %}
+        <option value="{{ gym.id }}" {% if student.gym_id == gym.id %}selected{% endif %}>{{ gym.name }}</option>
+        {% endfor %}
+    </select>
+    <small style="color: #888; display: block; margin-top: 5px;">Bepaalt welk curriculum de student ziet</small>
+    
+    <label for="belt">Belt</label>
+    <select id="belt" name="belt" required>
+        <option value="white" {% if student.belt == 'white' %}selected{% endif %}>White Belt</option>
+        <option value="blue" {% if student.belt == 'blue' %}selected{% endif %}>Blue Belt</option>
+        <option value="purple" {% if student.belt == 'purple' %}selected{% endif %}>Purple Belt</option>
+        <option value="brown" {% if student.belt == 'brown' %}selected{% endif %}>Brown Belt</option>
+        <option value="black" {% if student.belt == 'black' %}selected{% endif %}>Black Belt</option>
+    </select>
+    
+    <label for="stripes">Stripes</label>
+    <select id="stripes" name="stripes">
+        <option value="0" {% if student.stripes == 0 %}selected{% endif %}>0 stripes</option>
+        <option value="1" {% if student.stripes == 1 %}selected{% endif %}>1 stripe</option>
+        <option value="2" {% if student.stripes == 2 %}selected{% endif %}>2 stripes</option>
+        <option value="3" {% if student.stripes == 3 %}selected{% endif %}>3 stripes</option>
+        <option value="4" {% if student.stripes == 4 %}selected{% endif %}>4 stripes</option>
+    </select>
+    
+    <label for="since_date">Student sinds</label>
+    <input type="date" id="since_date" name="since_date" value="{{ student.since_date }}" required>
+    
+    <label style="margin-top: 30px;">Competition Prep</label>
+    <div style="background: #1a1a1a; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+        <label style="display: flex; align-items: center; margin: 0;">
+            <input type="checkbox" id="competition_prep_active" name="competition_prep_active" 
+                   {% if student.competition_prep_active %}checked{% endif %}
+                   style="width: auto; margin-right: 10px;">
+            <span>Competition Mode Actief</span>
+        </label>
+        
+        <label for="competition_date" style="margin-top: 15px;">Competition Datum</label>
+        <input type="date" id="competition_date" name="competition_date" 
+               value="{{ student.competition_date if student.competition_date else '' }}">
+        
+        <label for="current_weight">Huidig Gewicht (kg)</label>
+        <input type="number" step="0.1" id="current_weight" name="current_weight" 
+               value="{{ student.current_weight if student.current_weight else '' }}"
+               placeholder="75.5">
+    </div>
+    
+    <button type="submit" class="btn">Opslaan</button>
+</form>
+{% endblock %}

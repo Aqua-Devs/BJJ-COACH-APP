@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Nieuwe Student - BJJ Coach{% endblock %}
+
+{% block header %}Nieuwe Student{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}" class="back-link">Annuleren</a>
+
+<form method="POST" action="{{ url_for('add_student') }}">
+    <label for="name">Naam</label>
+    <input type="text" id="name" name="name" required autofocus>
+    
+    <label for="gym_id">Gym</label>
+    <select id="gym_id" name="gym_id" required>
+        <option value="">-- Kies Gym --</option>
+        {% for gym in gyms %}
+        <option value="{{ gym.id }}">{{ gym.name }}</option>
+        {% endfor %}
+    </select>
+    <small style="color: #888; display: block; margin-top: 5px;">Bepaalt welk curriculum de student ziet</small>
+    
+    <label for="belt">Belt</label>
+    <select id="belt" name="belt" required>
+        <option value="white">White Belt</option>
+        <option value="blue">Blue Belt</option>
+        <option value="purple">Purple Belt</option>
+        <option value="brown">Brown Belt</option>
+        <option value="black">Black Belt</option>
+    </select>
+    
+    <label for="stripes">Stripes</label>
+    <select id="stripes" name="stripes">
+        <option value="0">0 stripes</option>
+        <option value="1">1 stripe</option>
+        <option value="2">2 stripes</option>
+        <option value="3">3 stripes</option>
+        <option value="4">4 stripes</option>
+    </select>
+    
+    <label for="since_date">Student sinds</label>
+    <input type="date" id="since_date" name="since_date" required>
+    
+    <button type="submit" class="btn">Student Toevoegen</button>
+</form>
+
+<script>
+    // Set default date to today
+    document.getElementById('since_date').valueAsDate = new Date();
+</script>
+{% endblock %}

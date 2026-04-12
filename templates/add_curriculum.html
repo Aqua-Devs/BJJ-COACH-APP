@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Nieuwe Techniek - {{ gym.name }}{% endblock %}
+
+{% block header %}Nieuwe Techniek{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('curriculum', gym_id=gym.id) }}" class="back-link">Annuleren</a>
+
+<div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #ff6b35; font-size: 20px;">{{ gym.name }}</h2>
+</div>
+
+<form method="POST" action="{{ url_for('add_curriculum', gym_id=gym.id) }}">
+    <label for="technique_name">Techniek Naam</label>
+    <input type="text" id="technique_name" name="technique_name" placeholder="Bijv: Armbar from Guard" required autofocus>
+    
+    <label for="category">Categorie</label>
+    <select id="category" name="category" required>
+        <option value="">-- Kies --</option>
+        <option value="Submissions">Submissions</option>
+        <option value="Guards">Guards</option>
+        <option value="Passes">Passes</option>
+        <option value="Sweeps">Sweeps</option>
+        <option value="Escapes">Escapes</option>
+        <option value="Takedowns">Takedowns</option>
+        <option value="Positions">Positions</option>
+        <option value="Transitions">Transitions</option>
+        <option value="Defense">Defense</option>
+    </select>
+    
+    <label for="belt_level">Belt Level</label>
+    <select id="belt_level" name="belt_level" required>
+        <option value="">-- Kies --</option>
+        <option value="white">White Belt</option>
+        <option value="blue">Blue Belt</option>
+        <option value="purple">Purple Belt</option>
+        <option value="brown">Brown Belt</option>
+        <option value="black">Black Belt</option>
+    </select>
+    
+    <label for="date_from">Van Datum (optioneel)</label>
+    <input type="date" id="date_from" name="date_from">
+    <small style="color: #888; display: block; margin-top: 5px;">Vanaf wanneer deze techniek actief wordt</small>
+    
+    <label for="date_to">Tot Datum (optioneel)</label>
+    <input type="date" id="date_to" name="date_to">
+    <small style="color: #888; display: block; margin-top: 5px;">Tot wanneer deze techniek actief is</small>
+    
+    <label for="description">Beschrijving (optioneel)</label>
+    <textarea id="description" name="description" placeholder="Details over de techniek, belangrijke punten, etc..."></textarea>
+    
+    <button type="submit" class="btn">Techniek Toevoegen</button>
+</form>
+{% endblock %}

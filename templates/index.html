@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+
+{% block title %}Studenten - BJJ Coach{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('add_student') }}" class="btn">+ Nieuwe Student</a>
+<a href="{{ url_for('stats') }}" class="btn btn-secondary">📊 Statistieken</a>
+<a href="{{ url_for('gyms') }}" class="btn btn-secondary">🏫 Gyms & Curriculum</a>
+
+<!-- Gym Filter -->
+{% if gyms %}
+<div style="margin: 20px 0;">
+    <label for="gym-filter" style="display: block; margin-bottom: 8px; color: #ff6b35; font-size: 14px;">Filter op Gym:</label>
+    <select id="gym-filter" onchange="window.location.href='/?gym_id=' + this.value" style="width: 100%; padding: 12px; border-radius: 8px; background: #1a1a1a; color: #e0e0e0; border: 2px solid #2d2d2d;">
+        <option value="">Alle Gyms</option>
+        {% for gym in gyms %}
+        <option value="{{ gym.id }}" {% if current_gym and current_gym|int == gym.id %}selected{% endif %}>{{ gym.name }}</option>
+        {% endfor %}
+    </select>
+</div>
+{% endif %}
+
+<div style="margin-top: 30px;">
+    {% if students %}
+        {% for student in students %}
+        <a href="{{ url_for('student_detail', student_id=student.id) }}" style="text-decoration: none;">
+            <div class="student-card belt-{{ student.belt }}">
+                <div class="student-info">
+                    <h2>{{ student.name }}</h2>
+                    <div class="student-meta">
+                        <span class="belt-badge">{{ student.belt|upper }} BELT</span>
+                        {% if student.stripes and student.stripes > 0 %}
+                        <span class="stripes-badge">{{ '⬜' * student.stripes }}</span>
+                        {% endif %}
+                        {% if student.gym_name %}
+                        <span class="gym-badge">🏫 {{ student.gym_name }}</span>
+                        {% endif %}
+                        <span class="session-count">{{ student.session_count }} sessies</span>
+                        {% if student.active_injuries > 0 %}
+                        <span class="injury-badge">🩹 {{ student.active_injuries }}</span>
+                        {% endif %}
+                        {% if student.competition_prep_active %}
+                        <span class="comp-badge">🏆</span>
+                        {% endif %}
+                    </div>
+                    {% if student.last_session %}
+                    <div class="last-session">
+                        Laatste: {{ student.last_session }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: #888;">
+            <p style="font-size: 18px; margin-bottom: 20px;">Nog geen studenten</p>
+            <p>Tap "Nieuwe Student" om te beginnen</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .student-card {
+        background: #1a1a1a;
+        padding: 20px;
+        margin: 15px 0;
+        border-radius: 12px;
+        transition: all 0.2s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+    
+    .student-card:active {
+        transform: scale(0.98);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+    }
+    
+    .student-info h2 {
+        color: #ff6b35;
+        font-size: 22px;
+        margin-bottom: 10px;
+    }
+    
+    .student-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .belt-badge {
+        background: #ff6b35;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+    
+    .stripes-badge {
+        background: #2d2d2d;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    
+    .gym-badge {
+        background: #4A148C;
+        color: white;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 11px;
+    }
+    
+    .session-count {
+        color: #888;
+        font-size: 14px;
+    }
+    
+    .injury-badge {
+        background: #d32f2f;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    
+    .comp-badge {
+        background: #4CAF50;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+    
+    .last-session {
+        margin-top: 8px;
+        color: #888;
+        font-size: 13px;
+    }
+    
+    @media (prefers-color-scheme: light) {
+        .student-card {
+            background: #ffffff;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .stripes-badge {
+            background: #e0e0e0;
+            color: #1a1a1a;
+        }
+        .session-count,
+        .last-session {
+            color: #666;
+        }
+    }
+</style>
+{% endblock %}

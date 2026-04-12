@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Gyms - BJJ Coach{% endblock %}
+
+{% block header %}Gyms Beheer{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}" class="back-link">Terug naar overzicht</a>
+
+<a href="{{ url_for('add_gym') }}" class="btn">+ Nieuwe Gym</a>
+
+<div style="margin-top: 30px;">
+    {% if gyms %}
+        {% for gym in gyms %}
+        <div class="gym-card">
+            <div class="gym-header">
+                <div>
+                    <h3>{{ gym.name }}</h3>
+                    {% if gym.location %}
+                    <p class="gym-location">📍 {{ gym.location }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="{{ url_for('curriculum', gym_id=gym.id) }}" class="btn btn-secondary" style="margin-top: 15px;">
+                📚 Curriculum Beheren
+            </a>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div style="text-align: center; padding: 60px 20px; color: #888;">
+            <p style="font-size: 18px; margin-bottom: 20px;">Nog geen gyms</p>
+            <p>Voeg eerst gyms toe om curriculum te beheren</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .gym-card {
+        background: #1a1a1a;
+        padding: 20px;
+        margin: 15px 0;
+        border-radius: 12px;
+        border-left: 4px solid #ff6b35;
+    }
+    
+    .gym-header h3 {
+        color: #ff6b35;
+        font-size: 20px;
+        margin-bottom: 8px;
+    }
+    
+    .gym-location {
+        color: #888;
+        font-size: 14px;
+        margin: 0;
+    }
+    
+    @media (prefers-color-scheme: light) {
+        .gym-card {
+            background: #ffffff;
+        }
+    }
+</style>
+{% endblock %}

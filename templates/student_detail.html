@@ -1,0 +1,459 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student.name }} - BJJ Coach{% endblock %}
+
+{% block header %}{{ student.name }}{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('index') }}" class="back-link">Terug naar overzicht</a>
+
+<!-- Student Header met Belt Progress -->
+<div class="student-header belt-{{ student.belt }}">
+    <div class="belt-display">
+        <span class="belt-badge-large">{{ student.belt|upper }} BELT</span>
+        {% if student.stripes and student.stripes > 0 %}
+        <div class="stripes-display">{{ '⬜' * student.stripes }}</div>
+        {% endif %}
+    </div>
+    
+    {% if next_belt %}
+    <div class="belt-progress">
+        <div class="progress-header">
+            <span>Progress naar {{ next_belt }} belt</span>
+            <span>{{ readiness }}%</span>
+        </div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ readiness }}%"></div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="stats-grid">
+        <div class="stat-box">
+            <div class="stat-value">{{ training_frequency }}</div>
+            <div class="stat-label">Laatste 30 dagen</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">🔥 {{ streak }}</div>
+            <div class="stat-label">Dag streak</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value">{{ peer_percentile }}%</div>
+            <div class="stat-label">Top percentiel</div>
+        </div>
+    </div>
+</div>
+
+<!-- Competition Prep Banner -->
+{% if student.competition_prep_active and student.competition_date %}
+<div class="comp-banner">
+    <div style="font-size: 24px; margin-bottom: 5px;">🏆</div>
+    <div style="font-weight: 600;">Competition Mode</div>
+    <div style="font-size: 14px; color: #aaa;">{{ student.competition_date }}</div>
+</div>
+{% endif %}
+
+<!-- Active Injuries Warning -->
+{% if injuries %}
+<div class="injuries-warning">
+    <div style="font-size: 20px; margin-bottom: 8px;">⚠️ Actieve Blessures</div>
+    {% for injury in injuries %}
+    <div class="injury-item">
+        <strong>{{ injury.injury_type }}</strong> - {{ injury.affected_area }}
+        {% if injury.restricted_techniques %}
+        <div style="font-size: 13px; color: #ff6b35; margin-top: 4px;">
+            Vermijd: {{ injury.restricted_techniques }}
+        </div>
+        {% endif %}
+        <form action="{{ url_for('close_injury', injury_id=injury.id, student_id=student.id) }}" 
+              method="POST" style="display: inline; margin-top: 8px;">
+            <input type="date" name="end_date" style="width: auto; display: inline-block; padding: 6px; margin-right: 8px;">
+            <button type="submit" class="small-btn">Herstel</button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Action Buttons -->
+<a href="{{ url_for('add_session', student_id=student.id) }}" class="btn">+ Nieuwe Sessie</a>
+<a href="{{ url_for('add_sparring', student_id=student.id) }}" class="btn btn-secondary">🥋 Log Sparring</a>
+<a href="{{ url_for('add_injury', student_id=student.id) }}" class="btn btn-secondary">🩹 Log Blessure</a>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
+    <form action="{{ url_for('promote_student', student_id=student.id) }}" method="POST">
+        <input type="hidden" name="action" value="promote">
+        <button type="submit" class="btn" style="background: #4CAF50; width: 100%;">
+            {% if student.stripes < 4 %}⬜ Stripe +{% else %}🥋 Promote → {{ next_belt }}{% endif %}
+        </button>
+    </form>
+    
+    {% if student.stripes > 0 %}
+    <form action="{{ url_for('promote_student', student_id=student.id) }}" method="POST">
+        <input type="hidden" name="action" value="demote">
+        <button type="submit" class="btn" style="background: #d32f2f; width: 100%;">
+            ⬜ Stripe -
+        </button>
+    </form>
+    {% endif %}
+</div>
+
+<a href="{{ url_for('student_mastery', student_id=student.id) }}" class="btn btn-secondary">📊 Technique Mastery</a>
+<a href="{{ url_for('edit_student', student_id=student.id) }}" class="btn btn-secondary">✏️ Bewerk Student</a>
+
+<!-- Technique Mastery -->
+{% if mastery %}
+<h3 class="section-header">Techniek Mastery</h3>
+<div class="mastery-grid">
+    {% for tech in mastery %}
+    <div class="mastery-item mastery-{{ tech.level }}">
+        <div class="tech-name">{{ tech.technique }}</div>
+        <div class="tech-level">
+            {% if tech.level == 'introduced' %}🔵 Intro
+            {% elif tech.level == 'drilling' %}🟡 Drilling
+            {% elif tech.level == 'rolling' %}🟠 Rolling
+            {% elif tech.level == 'mastered' %}🟢 Mastered
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Sparring Stats -->
+{% if sparring %}
+<h3 class="section-header">Sparring Statistieken</h3>
+<div class="stats-grid" style="margin-bottom: 20px;">
+    <div class="stat-box">
+        <div class="stat-value">{{ sparring_stats.total }}</div>
+        <div class="stat-label">Totaal</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" style="color: #4CAF50;">{{ sparring_stats.wins }}</div>
+        <div class="stat-label">Wins</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" style="color: #d32f2f;">{{ sparring_stats.losses }}</div>
+        <div class="stat-label">Losses</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value">{{ sparring_stats.draws }}</div>
+        <div class="stat-label">Draws</div>
+    </div>
+</div>
+
+{% for spar in sparring[:5] %}
+<div class="sparring-card">
+    <div class="sparring-header">
+        <span class="sparring-date">{{ spar.date }}</span>
+        <span class="outcome-badge outcome-{{ spar.outcome }}">{{ spar.outcome|upper }}</span>
+    </div>
+    <div class="sparring-opponent">vs {{ spar.opponent_name }}</div>
+    {% if spar.what_worked %}
+    <div class="sparring-notes">
+        <strong>✅ Werkte:</strong> {{ spar.what_worked }}
+    </div>
+    {% endif %}
+    {% if spar.what_didnt %}
+    <div class="sparring-notes">
+        <strong>❌ Werkte niet:</strong> {{ spar.what_didnt }}
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+{% endif %}
+
+<!-- Session History -->
+<h3 class="section-header">Sessie Geschiedenis</h3>
+
+{% if sessions %}
+    {% for session in sessions %}
+    <div class="session-card">
+        <div class="session-header">
+            <span class="session-date">{{ session.date }}</span>
+            <form action="{{ url_for('delete_session', session_id=session.id, student_id=student.id) }}" 
+                  method="POST" style="display: inline;" 
+                  onsubmit="return confirm('Weet je zeker dat je deze sessie wilt verwijderen?');">
+                <button type="submit" class="delete-btn">🗑️</button>
+            </form>
+        </div>
+        
+        {% if session.techniques %}
+        <div class="technique-tags">
+            {% for tech in session.techniques.split(',') %}
+                <span class="tag">{{ tech.strip() }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+        
+        {% if session.notes_text %}
+        <div class="session-notes">
+            <span class="notes-icon">
+                {% if session.notes_type == 'goed' %}💚
+                {% elif session.notes_type == 'focus' %}⚠️
+                {% else %}📝{% endif %}
+            </span>
+            <p>{{ session.notes_text }}</p>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <div style="text-align: center; padding: 40px 20px; color: #888;">
+        <p>Nog geen sessies gelogd</p>
+    </div>
+{% endif %}
+
+<style>
+    .section-header {
+        margin-top: 40px;
+        margin-bottom: 20px;
+        color: #ff6b35;
+        font-size: 20px;
+        font-weight: 600;
+    }
+    
+    .student-header {
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .belt-display {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .belt-badge-large {
+        background: #ff6b35;
+        color: white;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 1px;
+    }
+    
+    .stripes-display {
+        font-size: 18px;
+    }
+    
+    .belt-progress {
+        margin: 15px 0;
+    }
+    
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #aaa;
+        margin-bottom: 8px;
+    }
+    
+    .progress-bar {
+        height: 8px;
+        background: #2d2d2d;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ff6b35, #ffaa00);
+        transition: width 0.3s;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 15px;
+    }
+    
+    .stat-box {
+        background: #0a0a0a;
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #ff6b35;
+    }
+    
+    .stat-label {
+        font-size: 11px;
+        color: #888;
+        margin-top: 4px;
+    }
+    
+    .comp-banner {
+        background: linear-gradient(135deg, #4CAF50, #45a049);
+        color: white;
+        padding: 20px;
+        border-radius: 12px;
+        text-align: center;
+        margin-bottom: 20px;
+        font-weight: 600;
+    }
+    
+    .injuries-warning {
+        background: #2d1a1a;
+        border: 2px solid #d32f2f;
+        padding: 15px;
+        border-radius: 12px;
+        margin-bottom: 20px;
+        color: #ffcccc;
+    }
+    
+    .injury-item {
+        background: #1a0a0a;
+        padding: 12px;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+    
+    .small-btn {
+        background: #4CAF50;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+    }
+    
+    .mastery-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+    
+    .mastery-item {
+        padding: 12px;
+        border-radius: 8px;
+        border-left: 4px solid;
+    }
+    
+    .mastery-introduced { background: #1a1a2d; border-color: #2196F3; }
+    .mastery-drilling { background: #2d2d1a; border-color: #FFC107; }
+    .mastery-rolling { background: #2d1a1a; border-color: #FF9800; }
+    .mastery-mastered { background: #1a2d1a; border-color: #4CAF50; }
+    
+    .tech-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    
+    .tech-level {
+        font-size: 12px;
+        color: #aaa;
+    }
+    
+    .sparring-card {
+        background: #1a1a1a;
+        padding: 15px;
+        margin: 10px 0;
+        border-radius: 12px;
+        border-left: 4px solid #ff6b35;
+    }
+    
+    .sparring-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .sparring-date {
+        color: #ff6b35;
+        font-weight: 600;
+    }
+    
+    .outcome-badge {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .outcome-win { background: #4CAF50; color: white; }
+    .outcome-loss { background: #d32f2f; color: white; }
+    .outcome-draw { background: #888; color: white; }
+    
+    .sparring-opponent {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .sparring-notes {
+        font-size: 13px;
+        margin-top: 6px;
+        padding: 8px;
+        background: #0a0a0a;
+        border-radius: 6px;
+    }
+    
+    .session-card {
+        background: #1a1a1a;
+        padding: 20px;
+        margin: 15px 0;
+        border-radius: 12px;
+        border-left: 4px solid #ff6b35;
+    }
+    
+    .session-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+    
+    .session-date {
+        color: #ff6b35;
+        font-weight: 600;
+        font-size: 16px;
+    }
+    
+    .delete-btn {
+        background: none;
+        border: none;
+        font-size: 20px;
+        cursor: pointer;
+        padding: 5px;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    
+    .delete-btn:active {
+        opacity: 1;
+    }
+    
+    .session-notes {
+        margin-top: 12px;
+        padding: 12px;
+        background: #0a0a0a;
+        border-radius: 8px;
+        display: flex;
+        gap: 10px;
+    }
+    
+    .notes-icon {
+        font-size: 20px;
+        flex-shrink: 0;
+    }
+    
+    .session-notes p {
+        color: #e0e0e0;
+        line-height: 1.5;
+        margin: 0;
+    }
+</style>
+{% endblock %}

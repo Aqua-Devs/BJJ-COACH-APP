@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}Technique Mastery - {{ student.name }}{% endblock %}
+
+{% block header %}Technique Mastery{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Terug naar student</a>
+
+<div style="text-align: center; margin-bottom: 30px;">
+    <h2 style="color: #ff6b35; font-size: 24px;">{{ student.name }}</h2>
+    <p style="color: #888; font-size: 14px;">Pas mastery percentages aan per techniek</p>
+</div>
+
+{% if curriculum_items %}
+    {% set current_belt = None %}
+    {% for tech in curriculum_items %}
+        {% if tech.belt_level != current_belt %}
+            {% set current_belt = tech.belt_level %}
+            <h3 class="belt-section-header belt-{{ tech.belt_level }}">{{ tech.belt_level|upper }} BELT</h3>
+        {% endif %}
+        
+        <div class="mastery-card">
+            <div class="mastery-header">
+                <div>
+                    <strong class="mastery-tech-name">{{ tech.technique_name }}</strong>
+                    <span class="mastery-category">{{ tech.category }}</span>
+                </div>
+                <div class="mastery-percentage" id="percentage-{{ tech.id }}">
+                    {{ mastery_dict.get(tech.technique_name, 0) }}%
+                </div>
+            </div>
+            
+            <form method="POST" action="{{ url_for('update_mastery', student_id=student.id) }}" class="mastery-form">
+                <input type="hidden" name="technique" value="{{ tech.technique_name }}">
+                <input type="range" 
+                       name="percentage" 
+                       min="0" 
+                       max="100" 
+                       value="{{ mastery_dict.get(tech.technique_name, 0) }}" 
+                       class="mastery-slider"
+                       data-tech-id="{{ tech.id }}"
+                       onchange="this.form.submit()">
+                <div class="mastery-labels">
+                    <span>0%</span>
+                    <span class="mastery-level-label" id="label-{{ tech.id }}">
+                        {% set current_pct = mastery_dict.get(tech.technique_name, 0) %}
+                        {% if current_pct < 25 %}🔵 Introduced
+                        {% elif current_pct < 50 %}🟡 Drilling
+                        {% elif current_pct < 75 %}🟠 Rolling
+                        {% else %}🟢 Mastered
+                        {% endif %}
+                    </span>
+                    <span>100%</span>
+                </div>
+            </form>
+        </div>
+    {% endfor %}
+{% else %}
+    <div style="text-align: center; padding: 60px 20px; color: #888;">
+        <p style="font-size: 18px; margin-bottom: 20px;">Geen curriculum beschikbaar</p>
+        <p>Deze student heeft geen gym toegewezen of de gym heeft geen curriculum</p>
+    </div>
+{% endif %}
+
+<style>
+    .belt-section-header {
+        margin-top: 40px;
+        margin-bottom: 20px;
+        font-size: 18px;
+        font-weight: 700;
+        padding: 10px 15px;
+        border-radius: 8px;
+        background: #1a1a1a;
+    }
+    
+    .belt-section-header.belt-white { color: #ffffff; border-left: 4px solid #ffffff; }
+    .belt-section-header.belt-blue { color: #2196F3; border-left: 4px solid #2196F3; }
+    .belt-section-header.belt-purple { color: #9C27B0; border-left: 4px solid #9C27B0; }
+    .belt-section-header.belt-brown { color: #795548; border-left: 4px solid #795548; }
+    .belt-section-header.belt-black { color: #ffffff; border-left: 4px solid #000000; }
+    
+    .mastery-card {
+        background: #1a1a1a;
+        padding: 20px;
+        margin: 15px 0;
+        border-radius: 12px;
+        border-left: 4px solid #ff6b35;
+    }
+    
+    .mastery-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .mastery-tech-name {
+        font-size: 16px;
+        color: #ff6b35;
+        display: block;
+        margin-bottom: 6px;
+    }
+    
+    .mastery-category {
+        background: #2d2d2d;
+        color: #aaa;
+        padding: 3px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .mastery-percentage {
+        font-size: 24px;
+        font-weight: 700;
+        color: #ff6b35;
+    }
+    
+    .mastery-slider {
+        width: 100%;
+        height: 8px;
+        border-radius: 4px;
+        background: #2d2d2d;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+        cursor: pointer;
+    }
+    
+    .mastery-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #ff6b35;
+        cursor: pointer;
+        box-shadow: 0 2px 8px rgba(255, 107, 53, 0.5);
+    }
+    
+    .mastery-slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: #ff6b35;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 8px rgba(255, 107, 53, 0.5);
+    }
+    
+    .mastery-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+    }
+    
+    .mastery-level-label {
+        font-weight: 600;
+        color: #aaa;
+    }
+    
+    @media (prefers-color-scheme: light) {
+        .belt-section-header,
+        .mastery-card {
+            background: #ffffff;
+        }
+        .belt-section-header.belt-black {
+            color: #000000;
+        }
+        .mastery-category {
+            background: #f0f0f0;
+            color: #666;
+        }
+        .mastery-slider {
+            background: #e0e0e0;
+        }
+    }
+</style>
+
+<script>
+    // Update percentage display as slider moves
+    document.querySelectorAll('.mastery-slider').forEach(slider => {
+        slider.addEventListener('input', function() {
+            const techId = this.getAttribute('data-tech-id');
+            const percentage = this.value;
+            const percentageDisplay = document.getElementById('percentage-' + techId);
+            const levelLabel = document.getElementById('label-' + techId);
+            
+            if (percentageDisplay) {
+                percentageDisplay.textContent = percentage + '%';
+            }
+            
+            // Update level label
+            if (levelLabel) {
+                if (percentage < 25) {
+                    levelLabel.textContent = '🔵 Introduced';
+                } else if (percentage < 50) {
+                    levelLabel.textContent = '🟡 Drilling';
+                } else if (percentage < 75) {
+                    levelLabel.textContent = '🟠 Rolling';
+                } else {
+                    levelLabel.textContent = '🟢 Mastered';
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

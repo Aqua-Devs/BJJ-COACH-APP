@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Log Blessure - {{ student.name }}{% endblock %}
+
+{% block header %}Log Blessure{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Annuleren</a>
+
+<div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #ff6b35; font-size: 24px;">{{ student.name }}</h2>
+</div>
+
+<form method="POST" action="{{ url_for('add_injury', student_id=student.id) }}">
+    <label for="injury_type">Type Blessure</label>
+    <select id="injury_type" name="injury_type" required>
+        <option value="">-- Kies --</option>
+        <option value="Verstuiking">Verstuiking</option>
+        <option value="Knieblessure">Knieblessure</option>
+        <option value="Schouder">Schouder</option>
+        <option value="Rug">Rug</option>
+        <option value="Nek">Nek</option>
+        <option value="Elleboog">Elleboog</option>
+        <option value="Pols">Pols</option>
+        <option value="Vinger">Vinger</option>
+        <option value="Teen">Teen</option>
+        <option value="Rib">Rib</option>
+        <option value="Anders">Anders</option>
+    </select>
+    
+    <label for="affected_area">Getroffen Gebied</label>
+    <input type="text" id="affected_area" name="affected_area" placeholder="Bijv: linker knie, rechter schouder..." required>
+    
+    <label for="restricted_techniques">Te Vermijden Technieken</label>
+    <input type="text" id="restricted_techniques" name="restricted_techniques" 
+           placeholder="Bijv: leg locks, omoplata, heavy passing...">
+    <small style="color: #888; display: block; margin-top: 5px;">Gescheiden door komma's</small>
+    
+    <label for="start_date">Startdatum</label>
+    <input type="date" id="start_date" name="start_date" value="{{ today }}" required>
+    
+    <label for="notes">Notities</label>
+    <textarea id="notes" name="notes" placeholder="Hoe gebeurde het, verwachte hersteltijd..."></textarea>
+    
+    <button type="submit" class="btn">Blessure Opslaan</button>
+</form>
+{% endblock %}

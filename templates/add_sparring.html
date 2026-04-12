@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Log Sparring - {{ student.name }}{% endblock %}
+
+{% block header %}Log Sparring{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Annuleren</a>
+
+<div style="text-align: center; margin-bottom: 20px;">
+    <h2 style="color: #ff6b35; font-size: 24px;">{{ student.name }}</h2>
+</div>
+
+<form method="POST" action="{{ url_for('add_sparring', student_id=student.id) }}">
+    <label for="date">Datum</label>
+    <input type="date" id="date" name="date" value="{{ today }}" required>
+    
+    <label for="opponent_name">Tegenstander</label>
+    <input type="text" id="opponent_name" name="opponent_name" placeholder="Naam..." required autofocus>
+    
+    <label for="outcome">Outcome</label>
+    <select id="outcome" name="outcome" required>
+        <option value="">-- Kies --</option>
+        <option value="win">Win (ik tapte hem/haar)</option>
+        <option value="loss">Loss (ik werd getapt)</option>
+        <option value="draw">Draw / Time</option>
+    </select>
+    
+    <label for="what_worked">Wat werkte goed?</label>
+    <textarea id="what_worked" name="what_worked" placeholder="Welke technieken, strategieën werkten..."></textarea>
+    
+    <label for="what_didnt">Wat werkte niet?</label>
+    <textarea id="what_didnt" name="what_didnt" placeholder="Waar moet gefocust worden..."></textarea>
+    
+    <label for="notes">Extra notities</label>
+    <textarea id="notes" name="notes" placeholder="Algemene opmerkingen..."></textarea>
+    
+    <button type="submit" class="btn">Sparring Opslaan</button>
+</form>
+{% endblock %}

@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block title %}Nieuwe Gym - BJJ Coach{% endblock %}
+
+{% block header %}Nieuwe Gym{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('gyms') }}" class="back-link">Annuleren</a>
+
+<form method="POST" action="{{ url_for('add_gym') }}">
+    <label for="name">Gym Naam</label>
+    <input type="text" id="name" name="name" placeholder="Bijv: Gracie Barra Amsterdam" required autofocus>
+    
+    <label for="location">Locatie (optioneel)</label>
+    <input type="text" id="location" name="location" placeholder="Bijv: Amsterdam Centrum">
+    
+    <button type="submit" class="btn">Gym Toevoegen</button>
+</form>
+{% endblock %}
