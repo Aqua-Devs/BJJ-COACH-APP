@@ -194,6 +194,15 @@ def index():
         # Get all gyms for filter
         gyms = conn.execute('SELECT * FROM gyms ORDER BY name').fetchall()
         
+        # Get pending users if admin
+        pending_users = []
+        if session.get('is_admin'):
+            pending_users = conn.execute('''
+                SELECT * FROM users 
+                WHERE is_approved = 0 AND is_admin = 0
+                ORDER BY created_at DESC
+            ''').fetchall()
+        
         # Build query with optional gym filter
         if gym_filter:
             students = conn.execute('''
@@ -226,7 +235,12 @@ def index():
         else:
             avg_sessions = 0
             
-    return render_template('index.html', students=students, avg_sessions=avg_sessions, gyms=gyms, current_gym=gym_filter)
+    return render_template('index.html', 
+                         students=students, 
+                         avg_sessions=avg_sessions, 
+                         gyms=gyms, 
+                         current_gym=gym_filter,
+                         pending_users=pending_users)
 
 # Auth routes
 @app.route('/login', methods=['GET', 'POST'])
@@ -292,6 +306,30 @@ def register():
 def logout():
     session.clear()
     return redirect(url_for('login'))
+
+@app.route('/debug/session')
+@login_required
+def debug_session():
+    """Debug route om session info te zien"""
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users WHERE id = %s', (session.get('user_id'),))
+    user = dict_fetchone(cur)
+    cur.close()
+    conn.close()
+    
+    debug_info = f"""
+    <h1>Debug Info</h1>
+    <p><strong>Session user_id:</strong> {session.get('user_id')}</p>
+    <p><strong>Session is_admin:</strong> {session.get('is_admin')}</p>
+    <p><strong>Session email:</strong> {session.get('user_email')}</p>
+    <hr>
+    <p><strong>Database user:</strong></p>
+    <pre>{user}</pre>
+    <hr>
+    <a href="/">Terug</a> | <a href="/logout">Logout</a>
+    """
+    return debug_info
 
 @app.route('/admin/users')
 @login_required
