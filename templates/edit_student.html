@@ -18,7 +18,10 @@
         <option value="{{ gym.id }}" {% if student.gym_id == gym.id %}selected{% endif %}>{{ gym.name }}</option>
         {% endfor %}
     </select>
-    <small style="color: #888; display: block; margin-top: 5px;">Bepaalt welk curriculum de student ziet</small>
+    <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+        <small style="color: #888; flex: 1;">Bepaalt welk curriculum de student ziet</small>
+        <a href="{{ url_for('add_gym') }}" style="background: #ff6b35; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600; white-space: nowrap;">+ Nieuwe Gym</a>
+    </div>
     
     <label for="belt">Belt</label>
     <select id="belt" name="belt" required>
