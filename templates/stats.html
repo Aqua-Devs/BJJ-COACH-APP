@@ -2,342 +2,308 @@
 
 {% block title %}Statistieken - BJJ Coach{% endblock %}
 
-{% block header %}Statistieken{% endblock %}
+{% block header %}📊 Dashboard{% endblock %}
 
 {% block content %}
-<a href="{{ url_for('index') }}" class="back-link">Terug naar overzicht</a>
+<a href="{{ url_for('index') }}" class="back-link">← Terug</a>
 
-<div class="stats-overview">
-    <div class="stat-card">
-        <div class="stat-number">{{ total_students }}</div>
-        <div class="stat-label">Totaal Studenten</div>
+<!-- Top Metrics Cards -->
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 40px;">
+    <div class="metric-card">
+        <div class="metric-icon">👥</div>
+        <div class="metric-value">{{ total_students }}</div>
+        <div class="metric-label">Studenten</div>
     </div>
-    <div class="stat-card">
-        <div class="stat-number">{{ total_sessions }}</div>
-        <div class="stat-label">Totaal Sessies</div>
+    <div class="metric-card">
+        <div class="metric-icon">📚</div>
+        <div class="metric-value">{{ total_sessions }}</div>
+        <div class="metric-label">Totaal Sessies</div>
+    </div>
+    <div class="metric-card">
+        <div class="metric-icon">📈</div>
+        <div class="metric-value">{{ "%.1f"|format(total_sessions / total_students if total_students > 0 else 0) }}</div>
+        <div class="metric-label">Avg / Student</div>
     </div>
 </div>
 
-<h3 style="margin-top: 40px; margin-bottom: 20px; color: #ff6b35; font-size: 20px;">Belt Distributie</h3>
-<div class="belt-dist">
-    {% for belt in belt_dist %}
-    <div class="belt-row">
-        <span class="belt-label">{{ belt.belt|upper }}</span>
-        <div class="belt-bar-container">
-            <div class="belt-bar belt-bar-{{ belt.belt }}" style="width: {{ (belt.count / total_students * 100) }}%"></div>
+<!-- Belt Distribution -->
+<div class="dashboard-section">
+    <h2 class="section-title">🥋 Belt Distributie</h2>
+    <div class="belt-chart">
+        {% for belt in belt_dist %}
+        <div class="belt-chart-row">
+            <div class="belt-chart-label">
+                <span class="belt-dot" style="background: {% if belt.belt == 'white' %}#f0f0f0{% elif belt.belt == 'blue' %}#2196F3{% elif belt.belt == 'purple' %}#9C27B0{% elif belt.belt == 'brown' %}#795548{% else %}#212121{% endif %};"></span>
+                <span style="text-transform: capitalize; font-weight: 600;">{{ belt.belt }}</span>
+            </div>
+            <div class="belt-chart-bar-container">
+                <div class="belt-chart-bar" style="width: {{ (belt.count / total_students * 100) if total_students > 0 else 0 }}%; background: linear-gradient(90deg, {% if belt.belt == 'white' %}#f0f0f0{% elif belt.belt == 'blue' %}#2196F3{% elif belt.belt == 'purple' %}#9C27B0{% elif belt.belt == 'brown' %}#795548{% else %}#212121{% endif %} 0%, {% if belt.belt == 'white' %}#e0e0e0{% elif belt.belt == 'blue' %}#1976D2{% elif belt.belt == 'purple' %}#7B1FA2{% elif belt.belt == 'brown' %}#5D4037{% else %}#000{% endif %} 100%);"></div>
+            </div>
+            <div class="belt-chart-count">{{ belt.count }} student{{ 's' if belt.count != 1 else '' }}</div>
         </div>
-        <span class="belt-count">{{ belt.count }}</span>
+        {% endfor %}
     </div>
-    {% endfor %}
 </div>
 
-<h3 style="margin-top: 40px; margin-bottom: 20px; color: #ff6b35; font-size: 20px;">Meest Actieve Studenten</h3>
-{% for student in active_students %}
-<div class="active-student-card">
-    <div>
-        <strong>{{ student.name }}</strong>
-        <span class="belt-badge-small">{{ student.belt }}</span>
+<!-- Most Active Students -->
+<div class="dashboard-section">
+    <h2 class="section-title">⭐ Top Performers</h2>
+    <div style="display: grid; gap: 12px;">
+        {% for student in active_students[:5] %}
+        <div class="performer-card">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div class="rank-badge">{{ loop.index }}</div>
+                <div>
+                    <div style="font-weight: 700; font-size: 16px; color: #ff6b35;">{{ student.name }}</div>
+                    <div style="font-size: 13px; color: #888; text-transform: capitalize;">{{ student.belt }} Belt</div>
+                </div>
+            </div>
+            <div class="sessions-badge">{{ student.session_count }} sessies</div>
+        </div>
+        {% endfor %}
     </div>
-    <div class="session-badge">{{ student.session_count }} sessies</div>
-</div>
-{% endfor %}
-
-<h3 style="margin-top: 40px; margin-bottom: 20px; color: #ff6b35; font-size: 20px;">Trainingsfrequentie per Belt (30 dagen)</h3>
-<div class="freq-chart">
-    {% for freq in freq_by_belt %}
-    <div class="freq-row">
-        <span class="freq-label">{{ freq.belt|upper }}</span>
-        <span class="freq-value">{{ "%.1f"|format(freq.avg_sessions) }}x / maand</span>
-    </div>
-    {% endfor %}
 </div>
 
-<!-- Sparring Analyse per Student -->
+<!-- Training Frequency by Belt -->
+<div class="dashboard-section">
+    <h2 class="section-title">📅 Trainingsfrequentie (30 dagen)</h2>
+    <div style="display: grid; gap: 12px;">
+        {% for freq in freq_by_belt %}
+        <div style="background: #1a1a1a; padding: 15px 20px; border-radius: 12px; display: flex; justify-space-between; align-items: center;">
+            <span style="text-transform: capitalize; font-weight: 600;">{{ freq.belt }} Belt</span>
+            <span style="color: #ff6b35; font-weight: 700; font-size: 18px;">{{ "%.1f"|format(freq.avg_sessions) }}x</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Sparring Insights -->
 {% if students_sparring %}
-<h3 style="margin-top: 40px; margin-bottom: 20px; color: #ff6b35; font-size: 20px;">Sparring Analyse per Student</h3>
-
-{% for student in students_sparring %}
-<div class="sparring-analysis-card">
-    <div class="student-sparring-header">
-        <div>
-            <strong style="font-size: 18px;">{{ student.name }}</strong>
-            <span class="belt-badge-small">{{ student.belt }}</span>
-        </div>
-        <div class="sparring-record">
-            <span style="color: #4CAF50;">{{ student.wins }}W</span> - 
-            <span style="color: #d32f2f;">{{ student.losses }}L</span>
-            <span style="color: #888; margin-left: 8px;">({{ student.sparring_count }} totaal)</span>
-        </div>
-    </div>
-    
-    <div class="insights-grid">
-        <!-- What Works -->
-        <div class="insight-section">
-            <div class="insight-header">✅ Wat werkt goed</div>
-            <div class="insight-list">
-                {% if sparring_insights[student.id].worked %}
-                    {% for item in sparring_insights[student.id].worked %}
-                    <div class="insight-item works">{{ item }}</div>
-                    {% endfor %}
-                {% else %}
-                    <div style="color: #666; font-style: italic; padding: 12px;">Nog geen data</div>
-                {% endif %}
+<div class="dashboard-section">
+    <h2 class="section-title">🥊 Sparring Analyse</h2>
+    {% for student in students_sparring[:5] %}
+    <div class="sparring-card">
+        <div class="sparring-header">
+            <div>
+                <div style="font-weight: 700; font-size: 16px;">{{ student.name }}</div>
+                <div style="font-size: 13px; color: #888; text-transform: capitalize;">{{ student.belt }} Belt</div>
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 14px; color: #888;">{{ student.sparring_count }} rounds</div>
+                <div style="font-size: 12px; color: #666;">
+                    <span style="color: #4CAF50;">{{ student.wins }}W</span> / 
+                    <span style="color: #d32f2f;">{{ student.losses }}L</span>
+                </div>
             </div>
         </div>
         
-        <!-- What Doesn't Work -->
-        <div class="insight-section">
-            <div class="insight-header">❌ Aandachtspunten</div>
-            <div class="insight-list">
-                {% if sparring_insights[student.id].didnt_work %}
-                    {% for item in sparring_insights[student.id].didnt_work %}
-                    <div class="insight-item doesnt-work">{{ item }}</div>
+        {% if sparring_insights[student.id] %}
+        <div class="insights-grid">
+            {% if sparring_insights[student.id].worked %}
+            <div class="insight-box">
+                <div class="insight-title">✅ Wat werkt:</div>
+                <ul>
+                    {% for item in sparring_insights[student.id].worked[:3] %}
+                    <li>{{ item }}</li>
                     {% endfor %}
-                {% else %}
-                    <div style="color: #666; font-style: italic; padding: 12px;">Nog geen data</div>
-                {% endif %}
+                </ul>
             </div>
+            {% endif %}
+            
+            {% if sparring_insights[student.id].didnt_work %}
+            <div class="insight-box">
+                <div class="insight-title">⚠️ Verbeterpunten:</div>
+                <ul>
+                    {% for item in sparring_insights[student.id].didnt_work[:3] %}
+                    <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
         </div>
+        {% endif %}
     </div>
+    {% endfor %}
 </div>
-{% endfor %}
 {% endif %}
 
 <style>
-    .stats-overview {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 15px;
-        margin-bottom: 30px;
-    }
-    
-    .stat-card {
-        background: #1a1a1a;
-        padding: 30px 20px;
-        border-radius: 12px;
+    .metric-card {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+        padding: 25px;
+        border-radius: 16px;
         text-align: center;
-        border-left: 4px solid #ff6b35;
+        border: 2px solid #2d2d2d;
+        transition: all 0.3s;
     }
     
-    .stat-number {
+    .metric-card:hover {
+        border-color: #ff6b35;
+        transform: translateY(-2px);
+    }
+    
+    .metric-icon {
+        font-size: 36px;
+        margin-bottom: 10px;
+    }
+    
+    .metric-value {
         font-size: 36px;
         font-weight: 700;
         color: #ff6b35;
-        margin-bottom: 8px;
+        margin-bottom: 5px;
     }
     
-    .stat-label {
+    .metric-label {
         font-size: 13px;
         color: #888;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-weight: 600;
     }
     
-    .belt-dist {
-        background: #1a1a1a;
-        padding: 20px;
-        border-radius: 12px;
+    .dashboard-section {
+        background: #0f0f0f;
+        padding: 25px;
+        border-radius: 16px;
+        margin-bottom: 25px;
+        border: 2px solid #1a1a1a;
     }
     
-    .belt-row {
+    .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        color: #ff6b35;
+        margin-bottom: 20px;
         display: flex;
         align-items: center;
+        gap: 10px;
+    }
+    
+    .belt-chart-row {
+        display: grid;
+        grid-template-columns: 120px 1fr 150px;
+        align-items: center;
         gap: 15px;
-        margin: 15px 0;
+        margin-bottom: 15px;
     }
     
-    .belt-label {
-        width: 80px;
-        font-weight: 600;
-        font-size: 13px;
+    .belt-chart-label {
+        display: flex;
+        align-items: center;
+        gap: 10px;
     }
     
-    .belt-bar-container {
-        flex: 1;
-        height: 24px;
-        background: #0a0a0a;
-        border-radius: 6px;
+    .belt-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+    }
+    
+    .belt-chart-bar-container {
+        background: #1a1a1a;
+        height: 28px;
+        border-radius: 14px;
         overflow: hidden;
     }
     
-    .belt-bar {
+    .belt-chart-bar {
         height: 100%;
-        transition: width 0.3s;
+        border-radius: 14px;
+        transition: width 0.5s;
     }
     
-    .belt-bar-white { background: #ffffff; }
-    .belt-bar-blue { background: #2196F3; }
-    .belt-bar-purple { background: #9C27B0; }
-    .belt-bar-brown { background: #795548; }
-    .belt-bar-black { background: #000000; }
-    
-    .belt-count {
-        width: 40px;
+    .belt-chart-count {
         text-align: right;
         font-weight: 600;
-        color: #ff6b35;
+        color: #888;
+        font-size: 14px;
     }
     
-    .active-student-card {
+    .performer-card {
         background: #1a1a1a;
-        padding: 15px;
-        margin: 10px 0;
+        padding: 18px 20px;
         border-radius: 12px;
         display: flex;
         justify-content: space-between;
         align-items: center;
+        transition: all 0.3s;
     }
     
-    .belt-badge-small {
+    .performer-card:hover {
         background: #2d2d2d;
-        color: #ff6b35;
-        padding: 3px 8px;
-        border-radius: 4px;
-        font-size: 11px;
-        margin-left: 10px;
-        text-transform: uppercase;
+        transform: translateX(5px);
     }
     
-    .session-badge {
-        background: #ff6b35;
+    .rank-badge {
+        background: linear-gradient(135deg, #ff6b35 0%, #ff8c61 100%);
         color: white;
-        padding: 6px 12px;
-        border-radius: 6px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-    
-    .freq-chart {
-        background: #1a1a1a;
-        padding: 20px;
-        border-radius: 12px;
-    }
-    
-    .freq-row {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
         display: flex;
-        justify-content: space-between;
-        padding: 12px;
-        margin: 8px 0;
-        background: #0a0a0a;
-        border-radius: 8px;
-    }
-    
-    .freq-label {
-        font-weight: 600;
-    }
-    
-    .freq-value {
-        color: #ff6b35;
-        font-weight: 600;
-    }
-    
-    .sparring-analysis-card {
-        background: #1a1a1a;
-        padding: 20px;
-        margin: 20px 0;
-        border-radius: 12px;
-        border-left: 4px solid #ff6b35;
-    }
-    
-    .student-sparring-header {
-        display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 20px;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 16px;
+    }
+    
+    .sessions-badge {
+        background: #2d2d2d;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-weight: 700;
+        color: #ff6b35;
+        font-size: 14px;
+    }
+    
+    .sparring-card {
+        background: #1a1a1a;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 15px;
+    }
+    
+    .sparring-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
         padding-bottom: 15px;
         border-bottom: 1px solid #2d2d2d;
     }
     
-    .sparring-record {
-        font-size: 16px;
-        font-weight: 600;
-    }
-    
     .insights-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
     }
     
-    .insight-section {
-        background: #0a0a0a;
-        border-radius: 8px;
-        overflow: hidden;
-    }
-    
-    .insight-header {
-        background: #2d2d2d;
-        padding: 12px 15px;
-        font-weight: 600;
-        font-size: 14px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-    
-    .insight-list {
-        padding: 8px;
-        max-height: 400px;
-        overflow-y: auto;
-    }
-    
-    .insight-item {
-        background: #1a1a1a;
+    .insight-box {
+        background: #0f0f0f;
         padding: 12px;
-        margin: 8px 0;
-        border-radius: 6px;
-        font-size: 14px;
-        line-height: 1.4;
-        border-left: 3px solid;
+        border-radius: 8px;
     }
     
-    .insight-item.works {
-        border-color: #4CAF50;
-        background: #0a1a0a;
+    .insight-title {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 13px;
     }
     
-    .insight-item.doesnt-work {
-        border-color: #d32f2f;
-        background: #1a0a0a;
+    .insight-box ul {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 13px;
+        line-height: 1.8;
+        color: #aaa;
     }
     
     @media (max-width: 768px) {
-        .insights-grid {
-            grid-template-columns: 1fr;
-        }
-    }
-    
-    @media (prefers-color-scheme: light) {
-        .stat-card,
-        .belt-dist,
-        .active-student-card,
-        .freq-chart,
-        .sparring-analysis-card {
-            background: #ffffff;
-        }
-        .belt-bar-container,
-        .freq-row,
-        .insight-section {
-            background: #f5f5f5;
-        }
-        .insight-list {
-            background: #fafafa;
-        }
-        .insight-item {
-            background: #ffffff;
-        }
-        .insight-item.works {
-            background: #f1f8f4;
-        }
-        .insight-item.doesnt-work {
-            background: #fef1f1;
-        }
-        .belt-badge-small {
-            background: #f0f0f0;
-        }
-        .student-sparring-header {
-            border-color: #e0e0e0;
-        }
-        .insight-header {
-            background: #e0e0e0;
-            color: #1a1a1a;
+        .belt-chart-row {
+            grid-template-columns: 100px 1fr 100px;
+            gap: 10px;
         }
     }
 </style>

@@ -2,7 +2,17 @@
 
 {% block title %}{{ student.name }} - BJJ Coach{% endblock %}
 
-{% block header %}{{ student.name }}{% endblock %}
+{% block header %}
+<div style="display: flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap;">
+    <span style="font-size: 28px; font-weight: 700;">{{ student.name }}</span>
+    <span class="belt-badge-inline" style="background: linear-gradient(135deg, {% if student.belt == 'white' %}#f0f0f0{% elif student.belt == 'blue' %}#2196F3{% elif student.belt == 'purple' %}#9C27B0{% elif student.belt == 'brown' %}#795548{% else %}#212121{% endif %} 0%, {% if student.belt == 'white' %}#e0e0e0{% elif student.belt == 'blue' %}#1976D2{% elif student.belt == 'purple' %}#7B1FA2{% elif student.belt == 'brown' %}#5D4037{% else %}#000000{% endif %} 100%); color: {% if student.belt == 'white' %}#333{% else %}white{% endif %}; padding: 8px 20px; border-radius: 20px; font-size: 14px; font-weight: 700; text-transform: uppercase;">
+        {{ student.belt }} Belt
+        {% if student.stripes > 0 %}
+        <span style="margin-left: 8px;">{{ '⬜' * student.stripes }}</span>
+        {% endif %}
+    </span>
+</div>
+{% endblock %}
 
 {% block content %}
 <a href="{{ url_for('index') }}" class="back-link">Terug naar overzicht</a>

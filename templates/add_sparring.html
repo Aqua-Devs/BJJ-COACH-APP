@@ -2,13 +2,16 @@
 
 {% block title %}Log Sparring - {{ student.name }}{% endblock %}
 
-{% block header %}Log Sparring{% endblock %}
+{% block header %}Log Sparring - {{ student.name }}{% endblock %}
 
 {% block content %}
 <a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Annuleren</a>
 
-<div style="text-align: center; margin-bottom: 20px;">
-    <h2 style="color: #ff6b35; font-size: 24px;">{{ student.name }}</h2>
+<div style="text-align: center; margin-bottom: 30px;">
+    <h2 style="color: #ff6b35; font-size: 26px; margin-bottom: 8px;">{{ student.name }}</h2>
+    <div style="display: inline-block; background: {% if student.belt == 'white' %}#f0f0f0; color: #333{% elif student.belt == 'blue' %}#2196F3; color: white{% elif student.belt == 'purple' %}#9C27B0; color: white{% elif student.belt == 'brown' %}#795548; color: white{% else %}#212121; color: white{% endif %}; padding: 6px 16px; border-radius: 15px; font-size: 13px; font-weight: 600; text-transform: uppercase;">
+        {{ student.belt }} Belt {% if student.stripes > 0 %}{{ '⬜' * student.stripes }}{% endif %}
+    </div>
 </div>
 
 <form method="POST" action="{{ url_for('add_sparring', student_id=student.id) }}">

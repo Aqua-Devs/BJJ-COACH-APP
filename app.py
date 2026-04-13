@@ -482,6 +482,30 @@ def student_detail(student_id):
             flash('Deze student bestaat niet of behoort niet tot jouw account!')
             return redirect(url_for('index'))
         
+        # CLEANUP: Remove duplicate techniques (case-insensitive)
+        # Get all mastery entries for this student
+        all_mastery = conn.execute('''
+            SELECT * FROM technique_mastery WHERE student_id = ?
+        ''', (student_id,)).fetchall()
+        
+        # Group by lowercase technique name, keep highest percentage
+        seen = {}
+        for m in all_mastery:
+            tech_lower = m['technique'].lower()
+            if tech_lower not in seen or m['mastery_percentage'] > seen[tech_lower]['mastery_percentage']:
+                seen[tech_lower] = m
+        
+        # Delete all, then re-insert deduplicated
+        if len(all_mastery) != len(seen):
+            conn.execute('DELETE FROM technique_mastery WHERE student_id = ?', (student_id,))
+            for tech_data in seen.values():
+                conn.execute('''
+                    INSERT INTO technique_mastery (student_id, technique, mastery_percentage, level, last_updated)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (student_id, tech_data['technique'].lower(), tech_data['mastery_percentage'], 
+                     tech_data['level'], tech_data['last_updated']))
+            conn.commit()
+        
         sessions = conn.execute('''
             SELECT * FROM sessions 
             WHERE student_id = ? 
