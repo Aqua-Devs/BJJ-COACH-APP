@@ -69,7 +69,7 @@
     <h2 class="section-title">📅 Trainingsfrequentie (30 dagen)</h2>
     <div style="display: grid; gap: 12px;">
         {% for freq in freq_by_belt %}
-        <div style="background: #1a1a1a; padding: 15px 20px; border-radius: 12px; display: flex; justify-space-between; align-items: center;">
+        <div style="background: #1a1a1a; padding: 15px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
             <span style="text-transform: capitalize; font-weight: 600;">{{ freq.belt }} Belt</span>
             <span style="color: #ff6b35; font-weight: 700; font-size: 18px;">{{ "%.1f"|format(freq.avg_sessions) }}x</span>
         </div>
@@ -77,11 +77,69 @@
     </div>
 </div>
 
+<!-- Recent Sessions -->
+{% if recent_sessions %}
+<div class="dashboard-section">
+    <h2 class="section-title">📝 Recente Sessies</h2>
+    <div style="display: grid; gap: 12px;">
+        {% for sess in recent_sessions[:10] %}
+        <div style="background: #1a1a1a; padding: 18px; border-radius: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+                <div>
+                    <div style="font-weight: 700; font-size: 16px; color: #ff6b35;">{{ sess.name }}</div>
+                    <div style="font-size: 13px; color: #888; text-transform: capitalize;">{{ sess.belt }} Belt</div>
+                </div>
+                <div style="background: #2d2d2d; padding: 6px 12px; border-radius: 8px; font-size: 13px; color: #888;">
+                    {{ sess.date }}
+                </div>
+            </div>
+            
+            {% if sess.techniques %}
+            <div style="margin-bottom: 10px;">
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Technieken:</div>
+                <div style="font-size: 14px; color: #aaa;">{{ sess.techniques }}</div>
+            </div>
+            {% endif %}
+            
+            {% if sess.note_goed %}
+            <div style="background: #0d2d0d; padding: 10px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #4CAF50;">
+                <div style="font-size: 11px; color: #4CAF50; margin-bottom: 4px; font-weight: 600;">✅ WAT GING GOED</div>
+                <div style="font-size: 13px; color: #9fdf9f;">{{ sess.note_goed }}</div>
+            </div>
+            {% endif %}
+            
+            {% if sess.note_focus %}
+            <div style="background: #2d1a0d; padding: 10px; border-radius: 8px; border-left: 3px solid #FF9800;">
+                <div style="font-size: 11px; color: #FF9800; margin-bottom: 4px; font-weight: 600;">⚠️ FOCUS PUNTEN</div>
+                <div style="font-size: 13px; color: #ffcc80;">{{ sess.note_focus }}</div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Top Techniques -->
+{% if top_techniques %}
+<div class="dashboard-section">
+    <h2 class="section-title">🔥 Meest Getrainde Technieken</h2>
+    <div style="display: grid; gap: 12px;">
+        {% for tech, count in top_techniques %}
+        <div style="background: #1a1a1a; padding: 15px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <span style="text-transform: capitalize; font-weight: 600;">{{ tech }}</span>
+            <span style="background: #ff6b35; color: white; padding: 4px 12px; border-radius: 12px; font-weight: 700; font-size: 14px;">{{ count }}x</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <!-- Sparring Insights -->
 {% if students_sparring %}
 <div class="dashboard-section">
     <h2 class="section-title">🥊 Sparring Analyse</h2>
-    {% for student in students_sparring[:5] %}
+    {% for student in students_sparring[:10] %}
     <div class="sparring-card">
         <div class="sparring-header">
             <div>
@@ -96,6 +154,21 @@
                 </div>
             </div>
         </div>
+        
+        {% if student.losses > 0 and student_loss_details.get(student.id) %}
+        <div style="background: #2d1a1a; padding: 15px; border-radius: 8px; margin-top: 12px; border-left: 3px solid #d32f2f;">
+            <div style="font-size: 13px; font-weight: 700; color: #ff6b6b; margin-bottom: 10px;">🔴 Verlies Analyse ({{ student.losses }} losses)</div>
+            <ul style="margin: 0; padding-left: 20px; font-size: 13px; line-height: 1.8; color: #ffcccc;">
+                {% for loss in student_loss_details[student.id][:5] %}
+                    {% if loss.what_didnt %}
+                    <li>{{ loss.what_didnt }}</li>
+                    {% elif loss.notes %}
+                    <li>{{ loss.notes }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
         
         {% if sparring_insights[student.id] %}
         <div class="insights-grid">
@@ -124,6 +197,32 @@
         {% endif %}
     </div>
     {% endfor %}
+</div>
+{% endif %}
+
+<!-- Overall Loss Patterns -->
+{% if top_loss_patterns %}
+<div class="dashboard-section">
+    <h2 class="section-title">❌ Waar Verliezen Studenten Het Meest Op?</h2>
+    <div style="background: #2d1a1a; padding: 20px; border-radius: 12px; border: 2px solid #d32f2f;">
+        <div style="font-size: 14px; color: #ffcccc; margin-bottom: 15px;">
+            Top {{ top_loss_patterns|length }} meest voorkomende verlies patronen bij alle studenten:
+        </div>
+        <div style="display: grid; gap: 10px;">
+            {% for pattern, count in top_loss_patterns %}
+            <div style="background: #1a0f0f; padding: 15px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: 600; color: #ff8888; text-transform: capitalize;">{{ pattern }}</span>
+                <span style="background: #d32f2f; color: white; padding: 6px 14px; border-radius: 12px; font-weight: 700;">{{ count }}x verloren</span>
+            </div>
+            {% endfor %}
+        </div>
+        <div style="margin-top: 20px; padding: 15px; background: #1a0f0f; border-radius: 8px; border-left: 3px solid #FF9800;">
+            <div style="font-size: 12px; color: #FF9800; font-weight: 700; margin-bottom: 5px;">💡 COACH TIP</div>
+            <div style="font-size: 13px; color: #ffcc80;">
+                Focus extra training tijd op deze zwakke punten. Organiseer specifieke drilling sessies voor de top 3 verlies patronen.
+            </div>
+        </div>
+    </div>
 </div>
 {% endif %}
 

@@ -587,21 +587,6 @@ def student_detail(student_id):
         stripes = student['stripes'] or 0
         readiness = min(100, int((stripes / 4) * 100))
         
-        # Peer comparison
-        all_students = conn.execute('SELECT * FROM students').fetchall()
-        same_belt = [s for s in all_students if s['belt'] == student['belt']]
-        
-        if len(same_belt) > 1:
-            same_belt_sessions = []
-            for s in same_belt:
-                count = conn.execute('SELECT COUNT(*) as c FROM sessions WHERE student_id = ?', (s['id'],)).fetchone()
-                same_belt_sessions.append(count['c'])
-            avg_same_belt = sum(same_belt_sessions) / len(same_belt_sessions)
-            peer_percentile = int((sum(1 for x in same_belt_sessions if x < freq['count']) / len(same_belt_sessions)) * 100)
-        else:
-            avg_same_belt = 0
-            peer_percentile = 50
-        
         suggestions = conn.execute('SELECT technique FROM technique_suggestions ORDER BY technique').fetchall()
         
         # Get homework
@@ -625,8 +610,6 @@ def student_detail(student_id):
                          sparring_stats=sparring_stats,
                          next_belt=next_belt,
                          readiness=readiness,
-                         avg_same_belt=avg_same_belt,
-                         peer_percentile=peer_percentile,
                          homework=homework)
 
 @login_required
@@ -1048,6 +1031,37 @@ def stats():
             GROUP BY s.belt
         ''', (thirty_days_ago, coach_id)).fetchall()
         
+        # Recent sessions with details
+        recent_sessions = conn.execute('''
+            SELECT s.name, s.belt, sess.date, sess.techniques, sess.note_goed, sess.note_focus
+            FROM sessions sess
+            JOIN students s ON sess.student_id = s.id
+            WHERE s.coach_id = ?
+            ORDER BY sess.date DESC, sess.created_at DESC
+            LIMIT 20
+        ''', (coach_id,)).fetchall()
+        
+        # Most trained techniques (from sessions)
+        technique_stats = conn.execute('''
+            SELECT sess.techniques
+            FROM sessions sess
+            JOIN students s ON sess.student_id = s.id
+            WHERE s.coach_id = ? AND sess.techniques IS NOT NULL AND sess.techniques != ''
+        ''', (coach_id,)).fetchall()
+        
+        # Count all techniques
+        technique_counts = {}
+        for row in technique_stats:
+            if row['techniques']:
+                techs = [t.strip() for t in row['techniques'].split(',')]
+                for tech in techs:
+                    tech_lower = tech.lower()
+                    if tech_lower:
+                        technique_counts[tech_lower] = technique_counts.get(tech_lower, 0) + 1
+        
+        # Sort by count
+        top_techniques = sorted(technique_counts.items(), key=lambda x: x[1], reverse=True)[:10]
+        
         # Per-student sparring analysis - ONLY THIS COACH'S
         students_sparring = conn.execute('''
             SELECT s.id, s.name, s.belt,
@@ -1059,8 +1073,46 @@ def stats():
             WHERE s.coach_id = ?
             GROUP BY s.id
             HAVING sparring_count > 0
-            ORDER BY s.name
+            ORDER BY losses DESC, s.name
         ''', (coach_id,)).fetchall()
+        
+        # VERLIES ANALYSE - Waar verliezen studenten het meest op?
+        # Get all losses with "what didn't work" notes
+        all_losses = conn.execute('''
+            SELECT sp.what_didnt, sp.notes, s.name, s.belt
+            FROM sparring_sessions sp
+            JOIN students s ON sp.student_id = s.id
+            WHERE s.coach_id = ? AND sp.outcome = 'loss'
+            ORDER BY sp.date DESC
+        ''', (coach_id,)).fetchall()
+        
+        # Analyze common loss patterns
+        loss_patterns = {}
+        for loss in all_losses:
+            if loss['what_didnt']:
+                # Split by common delimiters
+                items = loss['what_didnt'].lower().replace(',', '\n').replace(';', '\n').split('\n')
+                for item in items:
+                    item = item.strip()
+                    if len(item) > 3:  # Skip very short entries
+                        loss_patterns[item] = loss_patterns.get(item, 0) + 1
+        
+        # Top loss patterns (overall)
+        top_loss_patterns = sorted(loss_patterns.items(), key=lambda x: x[1], reverse=True)[:10]
+        
+        # Per-student loss analysis
+        student_loss_details = {}
+        for student in students_sparring:
+            if student['losses'] > 0:
+                student_losses = conn.execute('''
+                    SELECT what_didnt, notes, opponent_name
+                    FROM sparring_sessions
+                    WHERE student_id = ? AND outcome = 'loss'
+                    ORDER BY date DESC
+                    LIMIT 5
+                ''', (student['id'],)).fetchall()
+                
+                student_loss_details[student['id']] = student_losses
         
         # Get all "what worked" and "what didn't" per student
         sparring_insights = {}
@@ -1093,7 +1145,11 @@ def stats():
                          active_students=active_students,
                          freq_by_belt=freq_by_belt,
                          students_sparring=students_sparring,
-                         sparring_insights=sparring_insights)
+                         sparring_insights=sparring_insights,
+                         recent_sessions=recent_sessions,
+                         top_techniques=top_techniques,
+                         top_loss_patterns=top_loss_patterns,
+                         student_loss_details=student_loss_details)
 
 @login_required
 @approved_required
