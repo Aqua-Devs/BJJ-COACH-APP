@@ -55,7 +55,14 @@ def approved_required(f):
             return redirect(url_for('login'))
         with get_db() as conn:
             user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-            if not user or (not user['is_approved'] and not user['is_admin']):
+            if not user:
+                session.clear()
+                return redirect(url_for('login'))
+            if user['is_blocked']:
+                session.clear()
+                flash('Je account is geblokkeerd. Neem contact op met de administrator.')
+                return redirect(url_for('login'))
+            if not user['is_approved'] and not user['is_admin']:
                 return render_template('pending_approval.html')
         return f(*args, **kwargs)
     return decorated_function
@@ -69,6 +76,7 @@ def init_db():
                 password_hash TEXT NOT NULL,
                 is_approved INTEGER DEFAULT 0,
                 is_admin INTEGER DEFAULT 0,
+                is_blocked INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL
             )
         ''')
@@ -335,128 +343,14 @@ def debug_session():
 @login_required
 @admin_required
 def admin_users():
-    with get_db() as conn:
-        users = conn.execute('SELECT * FROM users ORDER BY created_at DESC').fetchall()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM users ORDER BY created_at DESC')
+    users = dict_fetchall(cur)
+    cur.close()
+    conn.close()
     
-    # Simple HTML without template
-    html = '''
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <title>Gebruikersbeheer - BJJ Coach</title>
-        <style>
-            body { 
-                font-family: -apple-system, sans-serif; 
-                background: #0a0a0a; 
-                color: #e0e0e0; 
-                padding: 40px;
-                max-width: 1000px;
-                margin: 0 auto;
-            }
-            h1 { color: #ff6b35; margin-bottom: 30px; }
-            .back { 
-                display: inline-block;
-                color: #ff6b35; 
-                text-decoration: none; 
-                margin-bottom: 20px;
-                font-size: 14px;
-            }
-            .back:hover { text-decoration: underline; }
-            .user { 
-                background: #1a1a1a; 
-                padding: 20px; 
-                margin: 15px 0; 
-                border-radius: 12px;
-                border-left: 4px solid #ff6b35;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .user.pending { border-left-color: #FFC107; background: #1a1a0a; }
-            .email { font-size: 18px; font-weight: 600; color: #ff6b35; }
-            .meta { color: #888; font-size: 13px; margin-top: 5px; }
-            .badge { 
-                display: inline-block;
-                padding: 4px 10px; 
-                border-radius: 6px; 
-                font-size: 12px;
-                margin-right: 8px;
-                font-weight: 600;
-            }
-            .badge-admin { background: #9C27B0; color: white; }
-            .badge-approved { background: #4CAF50; color: white; }
-            .badge-pending { background: #FFC107; color: #1a1a1a; }
-            .btn { 
-                padding: 10px 18px; 
-                border: none; 
-                border-radius: 8px;
-                font-weight: 600;
-                cursor: pointer;
-                margin-left: 8px;
-                font-size: 14px;
-            }
-            .btn-approve { background: #4CAF50; color: white; }
-            .btn-delete { background: #d32f2f; color: white; }
-            .flash { 
-                background: #4CAF50; 
-                color: white; 
-                padding: 15px; 
-                border-radius: 8px;
-                margin-bottom: 20px;
-            }
-        </style>
-    </head>
-    <body>
-        <a href="/" class="back">← Terug naar overzicht</a>
-        <h1>👥 Gebruikersbeheer</h1>
-        
-        ''' + (''.join([f'<div class="flash">{msg}</div>' for msg in get_flashed_messages()])) + '''
-        
-        <div>
-    '''
-    
-    for user in users:
-        pending_class = 'pending' if not user['is_approved'] and not user['is_admin'] else ''
-        html += f'''
-        <div class="user {pending_class}">
-            <div>
-                <div class="email">{user['email']}</div>
-                <div class="meta">
-                    {'<span class="badge badge-admin">👑 Admin</span>' if user['is_admin'] else ''}
-                    {'<span class="badge badge-approved">✅ Goedgekeurd</span>' if user['is_approved'] else '<span class="badge badge-pending">⏳ Wacht op goedkeuring</span>'}
-                    <span>{user['created_at'][:16]}</span>
-                </div>
-            </div>
-            <div>
-        '''
-        
-        if not user['is_approved'] and not user['is_admin']:
-            html += f'''
-                <form action="/admin/approve_user/{user['id']}" method="POST" style="display:inline;">
-                    <button type="submit" class="btn btn-approve">✓ Goedkeuren</button>
-                </form>
-            '''
-        
-        if not user['is_admin']:
-            html += f'''
-                <form action="/admin/delete_user/{user['id']}" method="POST" style="display:inline;"
-                      onsubmit="return confirm('Weet je zeker dat je {user['email']} wilt verwijderen?');">
-                    <button type="submit" class="btn btn-delete">🗑️ Verwijderen</button>
-                </form>
-            '''
-        
-        html += '''
-            </div>
-        </div>
-        '''
-    
-    html += '''
-        </div>
-    </body>
-    </html>
-    '''
-    
-    return html
+    return render_template('admin_users_simple.html', users=users)
 
 @app.route('/admin/approve_user/<int:user_id>', methods=['POST'])
 @login_required
@@ -476,6 +370,45 @@ def delete_user(user_id):
         conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
         conn.commit()
     flash('Gebruiker verwijderd!')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/block_user/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def block_user(user_id):
+    with get_db() as conn:
+        conn.execute('UPDATE users SET is_blocked = 1 WHERE id = ?', (user_id,))
+        conn.commit()
+    flash('Gebruiker geblokkeerd!')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/unblock_user/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def unblock_user(user_id):
+    with get_db() as conn:
+        conn.execute('UPDATE users SET is_blocked = 0 WHERE id = ?', (user_id,))
+        conn.commit()
+    flash('Gebruiker gedeblokkeerd!')
+    return redirect(url_for('admin_users'))
+
+@app.route('/admin/reset_user_password/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def reset_user_password(user_id):
+    import random
+    import string
+    
+    # Generate random password
+    new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+    password_hash = generate_password_hash(new_password)
+    
+    with get_db() as conn:
+        user = conn.execute('SELECT email FROM users WHERE id = ?', (user_id,)).fetchone()
+        conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (password_hash, user_id))
+        conn.commit()
+    
+    flash(f'Wachtwoord gereset voor {user["email"]}! Nieuw wachtwoord: {new_password} (sla dit op!)')
     return redirect(url_for('admin_users'))
 
 @login_required

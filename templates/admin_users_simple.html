@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gebruikersbeheer - BJJ Coach</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 40px 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .back-link {
+            display: inline-block;
+            color: #ff6b35;
+            text-decoration: none;
+            margin-bottom: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .back-link:hover {
+            text-decoration: underline;
+        }
+        
+        h1 {
+            color: #ff6b35;
+            margin-bottom: 30px;
+            font-size: 32px;
+        }
+        
+        .flash {
+            background: #4CAF50;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .user-card {
+            background: #1a1a1a;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 12px;
+            border-left: 4px solid #ff6b35;
+        }
+        
+        .user-card.pending {
+            border-left-color: #FFC107;
+            background: #1a1a0a;
+        }
+        
+        .user-card.blocked {
+            border-left-color: #d32f2f;
+            background: #1a0a0a;
+            opacity: 0.7;
+        }
+        
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        
+        .user-info h3 {
+            color: #ff6b35;
+            font-size: 20px;
+            margin-bottom: 8px;
+        }
+        
+        .user-meta {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .badge-admin {
+            background: #9C27B0;
+            color: white;
+        }
+        
+        .badge-approved {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .badge-pending {
+            background: #FFC107;
+            color: #1a1a1a;
+        }
+        
+        .badge-blocked {
+            background: #d32f2f;
+            color: white;
+        }
+        
+        .badge-date {
+            background: #2d2d2d;
+            color: #888;
+        }
+        
+        .user-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-approve {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .btn-block {
+            background: #FF9800;
+            color: white;
+        }
+        
+        .btn-unblock {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .btn-reset-pw {
+            background: #9C27B0;
+            color: white;
+        }
+        
+        .btn-delete {
+            background: #d32f2f;
+            color: white;
+        }
+        
+        .user-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #2d2d2d;
+        }
+        
+        .stat {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #ff6b35;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .user-header {
+                flex-direction: column;
+            }
+            
+            .user-actions {
+                margin-top: 15px;
+                width: 100%;
+            }
+            
+            .btn {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-link">← Terug naar overzicht</a>
+        
+        <h1>👥 Gebruikersbeheer</h1>
+        
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% if users %}
+            {% for user in users %}
+            <div class="user-card {% if not user.is_approved and not user.is_admin %}pending{% endif %} {% if user.is_blocked %}blocked{% endif %}">
+                <div class="user-header">
+                    <div class="user-info">
+                        <h3>{{ user.email }}</h3>
+                        <div class="user-meta">
+                            {% if user.is_admin %}
+                            <span class="badge badge-admin">👑 Admin</span>
+                            {% endif %}
+                            
+                            {% if user.is_blocked %}
+                            <span class="badge badge-blocked">🚫 Geblokkeerd</span>
+                            {% elif user.is_approved %}
+                            <span class="badge badge-approved">✅ Goedgekeurd</span>
+                            {% else %}
+                            <span class="badge badge-pending">⏳ Wacht op goedkeuring</span>
+                            {% endif %}
+                            
+                            <span class="badge badge-date">📅 {{ user.created_at[:16] }}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="user-actions">
+                        {% if not user.is_approved and not user.is_admin and not user.is_blocked %}
+                        <form action="{{ url_for('approve_user', user_id=user.id) }}" method="POST" style="display: inline;">
+                            <button type="submit" class="btn btn-approve">✓ Goedkeuren</button>
+                        </form>
+                        {% endif %}
+                        
+                        {% if not user.is_admin %}
+                            {% if user.is_blocked %}
+                            <form action="{{ url_for('unblock_user', user_id=user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-unblock">🔓 Deblokkeren</button>
+                            </form>
+                            {% else %}
+                            <form action="{{ url_for('block_user', user_id=user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-block" onclick="return confirm('{{ user.email }} blokkeren?')">🔒 Blokkeer</button>
+                            </form>
+                            {% endif %}
+                            
+                            <form action="{{ url_for('reset_user_password', user_id=user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-reset-pw" onclick="return confirm('Wachtwoord resetten voor {{ user.email }}?')">🔑 Reset PW</button>
+                            </form>
+                            
+                            <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn btn-delete" onclick="return confirm('{{ user.email }} VERWIJDEREN? Dit kan niet ongedaan worden!')">🗑️ Verwijder</button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <p style="text-align: center; color: #888; padding: 40px;">Geen gebruikers gevonden</p>
+        {% endif %}
+    </div>
+</body>
+</html>
