@@ -14,6 +14,9 @@
                 <p style="color: #aaa; margin: 5px 0 0 0; font-size: 14px;">{{ pending_users|length }} account(s) te reviewen</p>
             </div>
         </div>
+        <a href="{{ url_for('admin_users') }}" style="color: #FFC107; text-decoration: none; font-size: 14px; font-weight: 600;">
+            Alle Users →
+        </a>
     </div>
     
     {% for user in pending_users %}
