@@ -343,14 +343,10 @@ def debug_session():
 @login_required
 @admin_required
 def admin_users():
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM users ORDER BY created_at DESC')
-    users = dict_fetchall(cur)
-    cur.close()
-    conn.close()
+    with get_db() as conn:
+        users = conn.execute('SELECT * FROM users ORDER BY created_at DESC').fetchall()
     
-    return render_template('admin_users_simple.html', users=users)
+    return render_template('admin_users.html', users=users)
 
 @app.route('/admin/approve_user/<int:user_id>', methods=['POST'])
 @login_required
