@@ -79,6 +79,7 @@
 <a href="{{ url_for('add_session', student_id=student.id) }}" class="btn">+ Nieuwe Sessie</a>
 <a href="{{ url_for('add_sparring', student_id=student.id) }}" class="btn btn-secondary">🥋 Log Sparring</a>
 <a href="{{ url_for('add_injury', student_id=student.id) }}" class="btn btn-secondary">🩹 Log Blessure</a>
+<a href="{{ url_for('add_homework', student_id=student.id) }}" class="btn btn-secondary" style="background: linear-gradient(135deg, #9C27B0 0%, #BA68C8 100%);">📚 Huiswerk Toevoegen</a>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0;">
     <form action="{{ url_for('promote_student', student_id=student.id) }}" method="POST">
@@ -118,6 +119,34 @@
     </div>
     {% endfor %}
 </div>
+{% endif %}
+
+<!-- Homework Section -->
+<h3 class="section-header">📚 Huiswerk</h3>
+{% if homework %}
+    {% for hw in homework %}
+    <div style="background: linear-gradient(135deg, #1a0f1a 0%, #0f0a0f 100%); padding: 20px; border-radius: 12px; border-left: 4px solid #9C27B0; margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
+            <div style="flex: 1;">
+                <div style="color: #BA68C8; font-size: 13px; margin-bottom: 8px;">
+                    📅 {{ hw.assigned_date }}
+                </div>
+                <div style="white-space: pre-wrap; line-height: 1.8; font-size: 15px;">{{ hw.content }}</div>
+            </div>
+            <form action="{{ url_for('delete_homework', homework_id=hw.id, student_id=student.id) }}" method="POST" onsubmit="return confirm('Huiswerk verwijderen?');">
+                <button type="submit" style="background: #d32f2f; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                    🗑️
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+{% else %}
+    <div style="text-align: center; padding: 40px; color: #888; background: #1a1a1a; border-radius: 12px;">
+        <div style="font-size: 48px; margin-bottom: 15px;">📚</div>
+        <p>Nog geen huiswerk toegevoegd</p>
+        <a href="{{ url_for('add_homework', student_id=student.id) }}" style="color: #9C27B0; text-decoration: none; font-weight: 600;">+ Voeg eerste huiswerk toe</a>
+    </div>
 {% endif %}
 
 <!-- Sparring Stats -->
@@ -186,14 +215,24 @@
         </div>
         {% endif %}
         
-        {% if session.notes_text %}
-        <div class="session-notes">
-            <span class="notes-icon">
-                {% if session.notes_type == 'goed' %}💚
-                {% elif session.notes_type == 'focus' %}⚠️
-                {% else %}📝{% endif %}
-            </span>
-            <p>{{ session.notes_text }}</p>
+        {% if session.note_goed %}
+        <div class="session-notes notes-goed">
+            <span class="notes-icon">💚</span>
+            <p><strong>Goed:</strong> {{ session.note_goed }}</p>
+        </div>
+        {% endif %}
+        
+        {% if session.note_focus %}
+        <div class="session-notes notes-focus">
+            <span class="notes-icon">⚠️</span>
+            <p><strong>Focus:</strong> {{ session.note_focus }}</p>
+        </div>
+        {% endif %}
+        
+        {% if session.note_algemeen %}
+        <div class="session-notes notes-algemeen">
+            <span class="notes-icon">📝</span>
+            <p><strong>Algemeen:</strong> {{ session.note_algemeen }}</p>
         </div>
         {% endif %}
     </div>
@@ -443,6 +482,21 @@
         border-radius: 8px;
         display: flex;
         gap: 10px;
+    }
+    
+    .session-notes.notes-goed {
+        border-left: 3px solid #4CAF50;
+        background: #0a1a0a;
+    }
+    
+    .session-notes.notes-focus {
+        border-left: 3px solid #FFC107;
+        background: #1a1a0a;
+    }
+    
+    .session-notes.notes-algemeen {
+        border-left: 3px solid #2196F3;
+        background: #0a0a1a;
     }
     
     .notes-icon {

@@ -188,6 +188,16 @@ def init_db():
                 FOREIGN KEY (student_id) REFERENCES students (id)
             )
         ''')
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS homework (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                assigned_date TEXT NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (student_id) REFERENCES students (id)
+            )
+        ''')
         conn.commit()
 
 @login_required
@@ -512,6 +522,13 @@ def student_detail(student_id):
             peer_percentile = 50
         
         suggestions = conn.execute('SELECT technique FROM technique_suggestions ORDER BY technique').fetchall()
+        
+        # Get homework
+        homework = conn.execute('''
+            SELECT * FROM homework
+            WHERE student_id = ?
+            ORDER BY assigned_date DESC
+        ''', (student_id,)).fetchall()
     
     suggestion_list = [s['technique'] for s in suggestions]
     
@@ -528,7 +545,8 @@ def student_detail(student_id):
                          next_belt=next_belt,
                          readiness=readiness,
                          avg_same_belt=avg_same_belt,
-                         peer_percentile=peer_percentile)
+                         peer_percentile=peer_percentile,
+                         homework=homework)
 
 @login_required
 @approved_required
@@ -796,6 +814,36 @@ def promote_student(student_id):
         
         conn.commit()
     
+    return redirect(url_for('student_detail', student_id=student_id))
+
+@app.route('/add_homework/<int:student_id>', methods=['GET', 'POST'])
+@login_required
+@approved_required
+def add_homework(student_id):
+    if request.method == 'POST':
+        content = request.form['content']
+        
+        with get_db() as conn:
+            conn.execute('''
+                INSERT INTO homework (student_id, content, assigned_date, created_at)
+                VALUES (?, ?, ?, ?)
+            ''', (student_id, content, datetime.now().strftime('%Y-%m-%d'), datetime.now().isoformat()))
+            conn.commit()
+        
+        return redirect(url_for('student_detail', student_id=student_id))
+    
+    with get_db() as conn:
+        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+    
+    return render_template('add_homework.html', student=student)
+
+@app.route('/delete_homework/<int:homework_id>/<int:student_id>', methods=['POST'])
+@login_required
+@approved_required
+def delete_homework(homework_id, student_id):
+    with get_db() as conn:
+        conn.execute('DELETE FROM homework WHERE id = ?', (homework_id,))
+        conn.commit()
     return redirect(url_for('student_detail', student_id=student_id))
 
 @login_required
@@ -1112,6 +1160,11 @@ def update_mastery(student_id):
         conn.commit()
     
     return redirect(url_for('student_mastery', student_id=student_id))
+
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    from flask import send_from_directory
+    return send_from_directory('static', filename)
 
 if __name__ == '__main__':
     # Ensure database exists

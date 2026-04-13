@@ -1,0 +1,26 @@
+{
+  "name": "BJJ Coach - Student Management",
+  "short_name": "BJJ Coach",
+  "description": "Professional BJJ coaching platform voor student tracking en curriculum management",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#ff6b35",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g1' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%23ff6b35'/><stop offset='100%' style='stop-color:%23ff8c61'/></linearGradient></defs><rect fill='url(%23g1)' width='192' height='192' rx='42'/><circle cx='96' cy='96' r='70' fill='white' opacity='0.1'/><text x='96' y='140' font-size='110' text-anchor='middle' fill='white' font-weight='bold'>🥋</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g2' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' style='stop-color:%23ff6b35'/><stop offset='100%' style='stop-color:%23ff8c61'/></linearGradient></defs><rect fill='url(%23g2)' width='512' height='512' rx='112'/><circle cx='256' cy='256' r='180' fill='white' opacity='0.1'/><text x='256' y='370' font-size='300' text-anchor='middle' fill='white' font-weight='bold'>🥋</text></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["sports", "education", "productivity"],
+  "screenshots": []
+}

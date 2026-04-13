@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Huiswerk Toevoegen - {{ student.name }}{% endblock %}
+
+{% block header %}Huiswerk Toevoegen{% endblock %}
+
+{% block content %}
+<a href="{{ url_for('student_detail', student_id=student.id) }}" class="back-link">Annuleren</a>
+
+<div style="text-align: center; margin-bottom: 30px;">
+    <h2 style="color: #ff6b35; font-size: 24px;">📚 {{ student.name }}</h2>
+    <p style="color: #888; font-size: 14px;">Huiswerk klaarzetten</p>
+</div>
+
+<form method="POST">
+    <label for="content">Huiswerk</label>
+    <textarea 
+        id="content" 
+        name="content" 
+        rows="10"
+        placeholder="Bijv:&#10;&#10;- Bekijk deze video: https://youtube.com/watch?v=...&#10;- Oefen deze techniek 10x&#10;- Lees artikel over guard passing&#10;&#10;Je kunt hier YouTube linkjes, instructies of oefeningen plaatsen!"
+        required
+        style="min-height: 200px; font-size: 15px; line-height: 1.6;"
+    ></textarea>
+    
+    <div style="background: #1a1a0a; border: 2px solid #ff6b35; padding: 15px; border-radius: 8px; margin: 20px 0;">
+        <strong style="color: #ff6b35;">💡 Tips:</strong>
+        <ul style="margin: 10px 0 0 20px; color: #aaa; font-size: 14px; line-height: 1.8;">
+            <li>Plak YouTube linkjes direct in het veld</li>
+            <li>Geef duidelijke instructies wat de student moet doen</li>
+            <li>Datum wordt automatisch toegevoegd</li>
+            <li>Student kan later alles terugzien in chronologische volgorde</li>
+        </ul>
+    </div>
+    
+    <button type="submit" class="btn">📚 Huiswerk Opslaan</button>
+</form>
+
+<style>
+    textarea {
+        width: 100%;
+        padding: 16px;
+        border: 2px solid #2d2d2d;
+        border-radius: 10px;
+        background: #0a0a0a;
+        color: #e0e0e0;
+        font-family: inherit;
+        resize: vertical;
+    }
+    
+    textarea:focus {
+        outline: none;
+        border-color: #ff6b35;
+    }
+</style>
+{% endblock %}
