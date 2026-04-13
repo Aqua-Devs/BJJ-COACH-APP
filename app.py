@@ -1060,7 +1060,7 @@ def stats():
             GROUP BY s.id
             HAVING sparring_count > 0
             ORDER BY s.name
-        ''').fetchall()
+        ''', (coach_id,)).fetchall()
         
         # Get all "what worked" and "what didn't" per student
         sparring_insights = {}
