@@ -642,13 +642,19 @@ def add_session(student_id):
     
     if request.method == 'POST':
         date = request.form['date']
-        techniques = request.form.getlist('techniques[]')  # Multiple select
+        techniques = request.form.getlist('techniques[]')  # Multiple select from dropdown
+        manual_techniques = request.form.get('manual_techniques', '')  # Manual input
         note_goed = request.form.get('note_goed', '')
         note_focus = request.form.get('note_focus', '')
         note_algemeen = request.form.get('note_algemeen', '')
         
-        # Combine techniques into comma-separated string
-        techniques_str = ', '.join(techniques) if techniques else ''
+        # Combine techniques: dropdown + manual input
+        all_techniques = list(techniques)
+        if manual_techniques:
+            manual_list = [t.strip() for t in manual_techniques.split(',') if t.strip()]
+            all_techniques.extend(manual_list)
+        
+        techniques_str = ', '.join(all_techniques) if all_techniques else ''
         
         with get_db() as conn:
             # Verify ownership
@@ -662,10 +668,12 @@ def add_session(student_id):
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (student_id, date, techniques_str, note_goed, note_focus, note_algemeen, datetime.now().isoformat()))
             
-            # Update technique mastery for selected techniques
-            if techniques:
-                for tech in techniques:
+            # Update technique mastery for ALL techniques (dropdown + manual)
+            if all_techniques:
+                for tech in all_techniques:
                     tech = tech.strip().lower()
+                    if not tech:  # Skip empty strings
+                        continue
                     
                     existing = conn.execute('''
                         SELECT * FROM technique_mastery 
@@ -784,6 +792,11 @@ def edit_student(student_id):
 @login_required
 @approved_required
 def delete_session(session_id, student_id):
+    coach_id = session.get('user_id')
+    if not verify_student_ownership(student_id, coach_id):
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
     with get_db() as conn:
         conn.execute('DELETE FROM sessions WHERE id = ?', (session_id,))
         conn.commit()
@@ -922,6 +935,12 @@ def promote_student(student_id):
 @login_required
 @approved_required
 def add_homework(student_id):
+    coach_id = session.get('user_id')
+    student = verify_student_ownership(student_id, coach_id)
+    if not student:
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
     if request.method == 'POST':
         content = request.form['content']
         
@@ -934,15 +953,17 @@ def add_homework(student_id):
         
         return redirect(url_for('student_detail', student_id=student_id))
     
-    with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
-    
     return render_template('add_homework.html', student=student)
 
 @app.route('/delete_homework/<int:homework_id>/<int:student_id>', methods=['POST'])
 @login_required
 @approved_required
 def delete_homework(homework_id, student_id):
+    coach_id = session.get('user_id')
+    if not verify_student_ownership(student_id, coach_id):
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
     with get_db() as conn:
         conn.execute('DELETE FROM homework WHERE id = ?', (homework_id,))
         conn.commit()
@@ -954,15 +975,21 @@ def delete_homework(homework_id, student_id):
 @login_required
 @approved_required
 def stats():
+    coach_id = session.get('user_id')
+    
     with get_db() as conn:
-        # Overall stats
-        total_students = conn.execute('SELECT COUNT(*) as c FROM students').fetchone()['c']
-        total_sessions = conn.execute('SELECT COUNT(*) as c FROM sessions').fetchone()['c']
+        # Overall stats - ONLY THIS COACH'S DATA
+        total_students = conn.execute('SELECT COUNT(*) as c FROM students WHERE coach_id = ?', (coach_id,)).fetchone()['c']
+        total_sessions = conn.execute('''
+            SELECT COUNT(*) as c FROM sessions 
+            WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)
+        ''', (coach_id,)).fetchone()['c']
         
-        # Belt distribution
+        # Belt distribution - ONLY THIS COACH'S STUDENTS
         belt_dist = conn.execute('''
             SELECT belt, COUNT(*) as count 
             FROM students 
+            WHERE coach_id = ?
             GROUP BY belt
             ORDER BY 
                 CASE belt
@@ -972,19 +999,20 @@ def stats():
                     WHEN 'brown' THEN 4
                     WHEN 'black' THEN 5
                 END
-        ''').fetchall()
+        ''', (coach_id,)).fetchall()
         
-        # Most active students
+        # Most active students - ONLY THIS COACH'S
         active_students = conn.execute('''
             SELECT s.name, s.belt, COUNT(sess.id) as session_count
             FROM students s
             LEFT JOIN sessions sess ON s.id = sess.student_id
+            WHERE s.coach_id = ?
             GROUP BY s.id
             ORDER BY session_count DESC
             LIMIT 10
-        ''').fetchall()
+        ''', (coach_id,)).fetchall()
         
-        # Training frequency by belt
+        # Training frequency by belt - ONLY THIS COACH'S
         from datetime import datetime, timedelta
         thirty_days_ago = (datetime.now() - timedelta(days=30)).strftime('%Y-%m-%d')
         
@@ -992,10 +1020,11 @@ def stats():
             SELECT s.belt, COUNT(sess.id) / COUNT(DISTINCT s.id) as avg_sessions
             FROM students s
             LEFT JOIN sessions sess ON s.id = sess.student_id AND sess.date >= ?
+            WHERE s.coach_id = ?
             GROUP BY s.belt
-        ''', (thirty_days_ago,)).fetchall()
+        ''', (thirty_days_ago, coach_id)).fetchall()
         
-        # Per-student sparring analysis
+        # Per-student sparring analysis - ONLY THIS COACH'S
         students_sparring = conn.execute('''
             SELECT s.id, s.name, s.belt,
                    COUNT(sp.id) as sparring_count,
@@ -1003,6 +1032,7 @@ def stats():
                    SUM(CASE WHEN sp.outcome = 'loss' THEN 1 ELSE 0 END) as losses
             FROM students s
             LEFT JOIN sparring_sessions sp ON s.id = sp.student_id
+            WHERE s.coach_id = ?
             GROUP BY s.id
             HAVING sparring_count > 0
             ORDER BY s.name
@@ -1098,10 +1128,15 @@ def delete_gym(gym_id):
 @login_required
 @approved_required
 def curriculum(gym_id):
+    coach_id = session.get('user_id')
     view = request.args.get('view', 'current')  # current, upcoming, past, all
     
     with get_db() as conn:
-        gym = conn.execute('SELECT * FROM gyms WHERE id = ?', (gym_id,)).fetchone()
+        # VERIFY GYM OWNERSHIP
+        gym = conn.execute('SELECT * FROM gyms WHERE id = ? AND coach_id = ?', (gym_id, coach_id)).fetchone()
+        if not gym:
+            flash('Deze gym behoort niet tot jouw account!')
+            return redirect(url_for('gyms'))
         
         today = datetime.now().strftime('%Y-%m-%d')
         
@@ -1164,6 +1199,8 @@ def curriculum(gym_id):
 @login_required
 @approved_required
 def add_curriculum(gym_id):
+    coach_id = session.get('user_id')
+    
     if request.method == 'POST':
         technique_name = request.form['technique_name']
         category = request.form['category']
@@ -1179,6 +1216,12 @@ def add_curriculum(gym_id):
             date_to = None
         
         with get_db() as conn:
+            # Verify gym ownership
+            gym = conn.execute('SELECT * FROM gyms WHERE id = ? AND coach_id = ?', (gym_id, coach_id)).fetchone()
+            if not gym:
+                flash('Deze gym behoort niet tot jouw account!')
+                return redirect(url_for('gyms'))
+            
             conn.execute('''
                 INSERT INTO curriculum (gym_id, technique_name, category, belt_level, description, date_from, date_to, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -1188,7 +1231,10 @@ def add_curriculum(gym_id):
         return redirect(url_for('curriculum', gym_id=gym_id))
     
     with get_db() as conn:
-        gym = conn.execute('SELECT * FROM gyms WHERE id = ?', (gym_id,)).fetchone()
+        gym = conn.execute('SELECT * FROM gyms WHERE id = ? AND coach_id = ?', (gym_id, coach_id)).fetchone()
+        if not gym:
+            flash('Deze gym behoort niet tot jouw account!')
+            return redirect(url_for('gyms'))
     
     return render_template('add_curriculum.html', gym=gym)
 
@@ -1198,7 +1244,15 @@ def add_curriculum(gym_id):
 @login_required
 @approved_required
 def delete_curriculum(technique_id, gym_id):
+    coach_id = session.get('user_id')
+    
     with get_db() as conn:
+        # Verify gym ownership
+        gym = conn.execute('SELECT * FROM gyms WHERE id = ? AND coach_id = ?', (gym_id, coach_id)).fetchone()
+        if not gym:
+            flash('Deze gym behoort niet tot jouw account!')
+            return redirect(url_for('gyms'))
+        
         conn.execute('DELETE FROM curriculum WHERE id = ?', (technique_id,))
         conn.commit()
     return redirect(url_for('curriculum', gym_id=gym_id))

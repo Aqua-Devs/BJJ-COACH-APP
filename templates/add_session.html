@@ -30,106 +30,39 @@
     <input type="date" id="date" name="date" value="{{ today }}" required>
     
     <label for="techniques">Technieken</label>
-    <input type="text" 
-           id="techniques" 
-           name="techniques" 
-           placeholder="armbar, closed guard, sweep..."
-           autocomplete="off"
-           list="technique-suggestions">
-    <datalist id="technique-suggestions">
-        {% for suggestion in suggestions %}
-        <option value="{{ suggestion }}">
+    {% if curriculum_techniques %}
+    <select id="techniques" name="techniques[]" multiple size="8" required style="height: auto; min-height: 200px;">
+        {% for tech in curriculum_techniques %}
+        <option value="{{ tech.technique_name }}">{{ tech.technique_name }}</option>
         {% endfor %}
-    </datalist>
-    <small style="color: #888; display: block; margin-top: 5px;">Gescheiden door komma's</small>
-    
-    <label style="margin-top: 25px;">Type Notitie</label>
-    <div class="note-type-buttons">
-        <button type="button" class="note-type-btn" data-type="goed">
-            <div style="font-size: 24px; margin-bottom: 5px;">💚</div>
-            <div style="font-size: 13px;">Goed</div>
-        </button>
-        <button type="button" class="note-type-btn" data-type="focus">
-            <div style="font-size: 24px; margin-bottom: 5px;">⚠️</div>
-            <div style="font-size: 13px;">Focus</div>
-        </button>
-        <button type="button" class="note-type-btn" data-type="algemeen">
-            <div style="font-size: 24px; margin-bottom: 5px;">📝</div>
-            <div style="font-size: 13px;">Algemeen</div>
-        </button>
+    </select>
+    <small style="color: #888; display: block; margin-top: 5px;">Houd CTRL (Windows) of CMD (Mac) ingedrukt voor meerdere selecties</small>
+    {% else %}
+    <div style="background: #2d1a1a; border: 2px solid #FF9800; padding: 15px; border-radius: 8px; color: #ffcc80; margin-bottom: 20px;">
+        <strong>⚠️ Geen curriculum beschikbaar</strong>
+        <p style="margin: 8px 0 0 0; font-size: 14px;">
+            {% if not student.gym_id %}
+            Deze student heeft geen gym toegewezen. <a href="{{ url_for('edit_student', student_id=student.id) }}" style="color: #ff6b35; text-decoration: underline;">Wijs eerst een gym toe →</a>
+            {% else %}
+            De gym heeft geen actieve technieken in het curriculum. <a href="{{ url_for('curriculum', gym_id=student.gym_id) }}" style="color: #ff6b35; text-decoration: underline;">Voeg curriculum toe →</a>
+            {% endif %}
+        </p>
     </div>
+    <input type="text" id="manual_techniques" name="manual_techniques" placeholder="Typ technieken handmatig (bijv: armbar, triangle, guard pass)">
+    <small style="color: #888; display: block; margin-top: 5px;">Scheid meerdere technieken met komma's</small>
+    {% endif %}
     
-    <input type="hidden" id="notes_type" name="notes_type" value="">
+    <label style="margin-top: 25px;">💚 Goed</label>
+    <textarea id="note_goed" name="note_goed" placeholder="Wat ging goed vandaag?"></textarea>
     
-    <div id="notes-container" style="display: none;">
-        <label for="notes_text">Notitie</label>
-        <textarea id="notes_text" name="notes_text" placeholder="Type hier je notitie..."></textarea>
-    </div>
+    <label>⚠️ Focus</label>
+    <textarea id="note_focus" name="note_focus" placeholder="Waar moet extra aandacht naar uit?"></textarea>
     
-    <button type="submit" class="btn" id="submitBtn" disabled>Sessie Opslaan</button>
+    <label>📝 Algemeen</label>
+    <textarea id="note_algemeen" name="note_algemeen" placeholder="Algemene observaties..."></textarea>
+    
+    <button type="submit" class="btn" id="submitBtn">Sessie Opslaan</button>
 </form>
-
-<script>
-    const noteTypeButtons = document.querySelectorAll('.note-type-btn');
-    const notesContainer = document.getElementById('notes-container');
-    const notesTypeInput = document.getElementById('notes_type');
-    const notesTextArea = document.getElementById('notes_text');
-    const submitBtn = document.getElementById('submitBtn');
-    const techniquesInput = document.getElementById('techniques');
-    
-    // Handle note type selection
-    noteTypeButtons.forEach(btn => {
-        btn.addEventListener('click', function(e) {
-            e.preventDefault();
-            
-            // Remove active class from all buttons
-            noteTypeButtons.forEach(b => b.classList.remove('active'));
-            
-            // Add active class to clicked button
-            this.classList.add('active');
-            
-            // Set hidden input value
-            const type = this.getAttribute('data-type');
-            notesTypeInput.value = type;
-            
-            // Show notes container
-            notesContainer.style.display = 'block';
-            notesTextArea.focus();
-            
-            // Enable submit button
-            submitBtn.disabled = false;
-        });
-    });
-    
-    // Basic autocomplete for techniques (show suggestions as you type)
-    const suggestions = {{ suggestions|tojson }};
-    
-    techniquesInput.addEventListener('input', function() {
-        const value = this.value.toLowerCase();
-        const lastComma = value.lastIndexOf(',');
-        const currentTech = value.substring(lastComma + 1).trim();
-        
-        // Enable submit if either techniques or note type is filled
-        submitBtn.disabled = !(this.value.trim() || notesTypeInput.value);
-    });
-    
-    // Allow submit if techniques are filled
-    document.getElementById('sessionForm').addEventListener('submit', function(e) {
-        if (!techniquesInput.value.trim() && !notesTypeInput.value) {
-            e.preventDefault();
-            alert('Vul minimaal technieken of een notitie in');
-        }
-    });
-    
-    // Enable submit button when techniques are typed
-    techniquesInput.addEventListener('input', function() {
-        if (this.value.trim()) {
-            submitBtn.disabled = false;
-        } else if (!notesTypeInput.value) {
-            submitBtn.disabled = true;
-        }
-    });
-</script>
 
 <style>
     .injuries-warning {
@@ -138,6 +71,25 @@
         padding: 15px;
         border-radius: 12px;
         color: #ffcccc;
+    }
+    
+    select[multiple] {
+        padding: 8px;
+    }
+    
+    select[multiple] option {
+        padding: 8px 12px;
+        margin: 2px 0;
+        border-radius: 4px;
+    }
+    
+    select[multiple] option:checked {
+        background: #ff6b35;
+        color: white;
+    }
+    
+    textarea {
+        min-height: 80px;
     }
 </style>
 {% endblock %}
