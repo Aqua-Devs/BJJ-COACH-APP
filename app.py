@@ -1383,41 +1383,57 @@ def student_mastery(student_id):
 @login_required
 @approved_required
 def update_mastery(student_id):
-    technique = request.form['technique']
-    percentage = int(request.form['percentage'])
+    coach_id = session.get('user_id')
+    
+    # Verify student ownership
+    student = verify_student_ownership(student_id, coach_id)
+    if not student:
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
+    # Get arrays of techniques and percentages
+    techniques = request.form.getlist('techniques[]')
+    percentages = request.form.getlist('percentages[]')
     
     with get_db() as conn:
-        # Check if exists
-        existing = conn.execute('''
-            SELECT * FROM technique_mastery 
-            WHERE student_id = ? AND technique = ?
-        ''', (student_id, technique)).fetchone()
-        
-        # Determine level based on percentage
-        if percentage < 25:
-            level = 'introduced'
-        elif percentage < 50:
-            level = 'drilling'
-        elif percentage < 75:
-            level = 'rolling'
-        else:
-            level = 'mastered'
-        
-        if existing:
-            conn.execute('''
-                UPDATE technique_mastery 
-                SET mastery_percentage = ?, level = ?, last_updated = ?
+        # Update all techniques
+        for technique, percentage_str in zip(techniques, percentages):
+            technique_lower = technique.strip().lower()
+            percentage = int(percentage_str)
+            
+            # Determine level based on percentage
+            if percentage < 25:
+                level = 'introduced'
+            elif percentage < 50:
+                level = 'drilling'
+            elif percentage < 75:
+                level = 'rolling'
+            else:
+                level = 'mastered'
+            
+            # Check if exists
+            existing = conn.execute('''
+                SELECT * FROM technique_mastery 
                 WHERE student_id = ? AND technique = ?
-            ''', (percentage, level, datetime.now().isoformat(), student_id, technique))
-        else:
-            conn.execute('''
-                INSERT INTO technique_mastery 
-                (student_id, technique, mastery_percentage, level, last_updated)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (student_id, technique, percentage, level, datetime.now().isoformat()))
+            ''', (student_id, technique_lower)).fetchone()
+            
+            if existing:
+                conn.execute('''
+                    UPDATE technique_mastery 
+                    SET mastery_percentage = ?, level = ?, last_updated = ?
+                    WHERE student_id = ? AND technique = ?
+                ''', (percentage, level, datetime.now().isoformat(), student_id, technique_lower))
+            else:
+                conn.execute('''
+                    INSERT INTO technique_mastery 
+                    (student_id, technique, mastery_percentage, level, last_updated)
+                    VALUES (?, ?, ?, ?, ?)
+                ''', (student_id, technique_lower, percentage, level, datetime.now().isoformat()))
         
         conn.commit()
     
+    flash('✅ Technique mastery opgeslagen!')
+    return redirect(url_for('student_detail', student_id=student_id))
     return redirect(url_for('student_mastery', student_id=student_id))
 
 @app.route('/static/<path:filename>')

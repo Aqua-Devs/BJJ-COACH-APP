@@ -12,6 +12,7 @@
     <p style="color: #888; font-size: 14px;">Pas mastery percentages aan per techniek</p>
 </div>
 
+<form method="POST" action="{{ url_for('update_mastery', student_id=student.id) }}" id="masteryForm">
 {% if curriculum_items %}
     {% set current_belt = None %}
     {% for tech in curriculum_items %}
@@ -26,42 +27,50 @@
                     <strong class="mastery-tech-name">{{ tech.technique_name }}</strong>
                     <span class="mastery-category">{{ tech.category }}</span>
                 </div>
-                <div class="mastery-percentage" id="percentage-{{ tech.id }}">
-                    {{ mastery_dict.get(tech.technique_name, 0) }}%
+                <div class="mastery-percentage" id="percentage-{{ loop.index }}">
+                    {{ mastery_dict.get(tech.technique_name.lower(), 0) }}%
                 </div>
             </div>
             
-            <form method="POST" action="{{ url_for('update_mastery', student_id=student.id) }}" class="mastery-form">
-                <input type="hidden" name="technique" value="{{ tech.technique_name }}">
-                <input type="range" 
-                       name="percentage" 
-                       min="0" 
-                       max="100" 
-                       value="{{ mastery_dict.get(tech.technique_name, 0) }}" 
-                       class="mastery-slider"
-                       data-tech-id="{{ tech.id }}"
-                       onchange="this.form.submit()">
-                <div class="mastery-labels">
-                    <span>0%</span>
-                    <span class="mastery-level-label" id="label-{{ tech.id }}">
-                        {% set current_pct = mastery_dict.get(tech.technique_name, 0) %}
-                        {% if current_pct < 25 %}🔵 Introduced
-                        {% elif current_pct < 50 %}🟡 Drilling
-                        {% elif current_pct < 75 %}🟠 Rolling
-                        {% else %}🟢 Mastered
-                        {% endif %}
-                    </span>
-                    <span>100%</span>
-                </div>
-            </form>
+            <input type="hidden" name="techniques[]" value="{{ tech.technique_name }}">
+            <input type="range" 
+                   name="percentages[]" 
+                   min="0" 
+                   max="100" 
+                   value="{{ mastery_dict.get(tech.technique_name.lower(), 0) }}" 
+                   class="mastery-slider"
+                   data-index="{{ loop.index }}">
+            <div class="mastery-labels">
+                <span>0%</span>
+                <span class="mastery-level-label" id="label-{{ loop.index }}">
+                    {% set current_pct = mastery_dict.get(tech.technique_name.lower(), 0) %}
+                    {% if current_pct < 25 %}🔵 Introduced
+                    {% elif current_pct < 50 %}🟡 Drilling
+                    {% elif current_pct < 75 %}🟠 Rolling
+                    {% else %}🟢 Mastered
+                    {% endif %}
+                </span>
+                <span>100%</span>
+            </div>
         </div>
     {% endfor %}
+    
+    <!-- Sticky Save Button -->
+    <div style="position: sticky; bottom: 20px; margin-top: 30px; z-index: 100;">
+        <button type="submit" class="btn" style="width: 100%; font-size: 18px; padding: 18px; background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%); box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);">
+            💾 Opslaan & Updaten
+        </button>
+        <div id="saveHint" style="text-align: center; margin-top: 10px; font-size: 13px; color: #888; display: none;">
+            ⚠️ Je hebt wijzigingen - vergeet niet op te slaan!
+        </div>
+    </div>
 {% else %}
     <div style="text-align: center; padding: 60px 20px; color: #888;">
         <p style="font-size: 18px; margin-bottom: 20px;">Geen curriculum beschikbaar</p>
         <p>Deze student heeft geen gym toegewezen of de gym heeft geen curriculum</p>
     </div>
 {% endif %}
+</form>
 
 <style>
     .belt-section-header {
@@ -182,13 +191,19 @@
 </style>
 
 <script>
+    let hasChanges = false;
+    
     // Update percentage display as slider moves
     document.querySelectorAll('.mastery-slider').forEach(slider => {
         slider.addEventListener('input', function() {
-            const techId = this.getAttribute('data-tech-id');
+            const index = this.getAttribute('data-index');
             const percentage = this.value;
-            const percentageDisplay = document.getElementById('percentage-' + techId);
-            const levelLabel = document.getElementById('label-' + techId);
+            const percentageDisplay = document.getElementById('percentage-' + index);
+            const levelLabel = document.getElementById('label-' + index);
+            
+            // Mark as changed
+            hasChanges = true;
+            document.getElementById('saveHint').style.display = 'block';
             
             if (percentageDisplay) {
                 percentageDisplay.textContent = percentage + '%';
@@ -207,6 +222,19 @@
                 }
             }
         });
+    });
+    
+    // Warn before leaving with unsaved changes
+    window.addEventListener('beforeunload', function(e) {
+        if (hasChanges) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+    
+    // Clear warning on form submit
+    document.getElementById('masteryForm').addEventListener('submit', function() {
+        hasChanges = false;
     });
 </script>
 {% endblock %}
