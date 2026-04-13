@@ -67,6 +67,13 @@ def approved_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+def verify_student_ownership(student_id, coach_id):
+    """Helper function to verify a student belongs to a coach"""
+    with get_db() as conn:
+        student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', 
+                              (student_id, coach_id)).fetchone()
+        return student
+
 def init_db():
     with get_db() as conn:
         conn.execute('''
@@ -83,14 +90,17 @@ def init_db():
         conn.execute('''
             CREATE TABLE IF NOT EXISTS gyms (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                name TEXT NOT NULL UNIQUE,
+                coach_id INTEGER NOT NULL,
+                name TEXT NOT NULL,
                 location TEXT,
-                created_at TEXT NOT NULL
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (coach_id) REFERENCES users (id)
             )
         ''')
         conn.execute('''
             CREATE TABLE IF NOT EXISTS students (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                coach_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
                 belt TEXT NOT NULL,
                 since_date TEXT NOT NULL,
@@ -99,6 +109,7 @@ def init_db():
                 competition_prep_active INTEGER DEFAULT 0,
                 current_weight REAL,
                 gym_id INTEGER,
+                FOREIGN KEY (coach_id) REFERENCES users (id),
                 FOREIGN KEY (gym_id) REFERENCES gyms (id)
             )
         ''')
@@ -207,10 +218,11 @@ def init_db():
 @approved_required
 def index():
     gym_filter = request.args.get('gym_id', None)
+    coach_id = session.get('user_id')
     
     with get_db() as conn:
-        # Get all gyms for filter
-        gyms = conn.execute('SELECT * FROM gyms ORDER BY name').fetchall()
+        # Get all gyms for THIS coach
+        gyms = conn.execute('SELECT * FROM gyms WHERE coach_id = ? ORDER BY name', (coach_id,)).fetchall()
         
         # Get pending users if admin
         pending_users = []
@@ -221,7 +233,7 @@ def index():
                 ORDER BY created_at DESC
             ''').fetchall()
         
-        # Build query with optional gym filter
+        # Build query with optional gym filter - ONLY THIS COACH'S STUDENTS
         if gym_filter:
             students = conn.execute('''
                 SELECT s.*, 
@@ -231,9 +243,9 @@ def index():
                        (SELECT COUNT(*) FROM injuries WHERE student_id = s.id AND active = 1) as active_injuries
                 FROM students s
                 LEFT JOIN gyms g ON s.gym_id = g.id
-                WHERE s.gym_id = ?
+                WHERE s.coach_id = ? AND s.gym_id = ?
                 ORDER BY s.name
-            ''', (gym_filter,)).fetchall()
+            ''', (coach_id, gym_filter)).fetchall()
         else:
             students = conn.execute('''
                 SELECT s.*, 
@@ -243,8 +255,9 @@ def index():
                        (SELECT COUNT(*) FROM injuries WHERE student_id = s.id AND active = 1) as active_injuries
                 FROM students s
                 LEFT JOIN gyms g ON s.gym_id = g.id
+                WHERE s.coach_id = ?
                 ORDER BY s.name
-            ''').fetchall()
+            ''', (coach_id,)).fetchall()
         
         # Calculate peer stats for comparison
         total_students = len(students)
@@ -417,14 +430,58 @@ def reset_user_password(user_id):
     flash(f'Wachtwoord gereset voor {user["email"]}! Nieuw wachtwoord: {new_password} (sla dit op!)')
     return redirect(url_for('admin_users'))
 
+@app.route('/admin/delete_coach_data/<int:user_id>', methods=['POST'])
+@login_required
+@admin_required
+def delete_coach_data(user_id):
+    with get_db() as conn:
+        user = conn.execute('SELECT email FROM users WHERE id = ?', (user_id,)).fetchone()
+        
+        if not user:
+            flash('Gebruiker niet gevonden!')
+            return redirect(url_for('admin_users'))
+        
+        # Delete in correct order (respecting foreign keys)
+        # 1. Sessions, sparring, injuries, belt_promotions, homework, technique_mastery
+        conn.execute('DELETE FROM sessions WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)', (user_id,))
+        conn.execute('DELETE FROM sparring_sessions WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)', (user_id,))
+        conn.execute('DELETE FROM injuries WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)', (user_id,))
+        conn.execute('DELETE FROM belt_promotions WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)', (user_id,))
+        conn.execute('DELETE FROM homework WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)', (user_id,))
+        conn.execute('DELETE FROM technique_mastery WHERE student_id IN (SELECT id FROM students WHERE coach_id = ?)', (user_id,))
+        
+        # 2. Students
+        conn.execute('DELETE FROM students WHERE coach_id = ?', (user_id,))
+        
+        # 3. Curriculum
+        conn.execute('DELETE FROM curriculum WHERE gym_id IN (SELECT id FROM gyms WHERE coach_id = ?)', (user_id,))
+        
+        # 4. Technique suggestions (if they have coach_id - currently they don't, so skip)
+        
+        # 5. Gyms
+        conn.execute('DELETE FROM gyms WHERE coach_id = ?', (user_id,))
+        
+        conn.commit()
+    
+    flash(f'Alle data van {user["email"]} is verwijderd! (Account blijft bestaan)')
+    return redirect(url_for('admin_users'))
+
 @login_required
 @approved_required
 @app.route('/student/<int:student_id>')
 @login_required
 @approved_required
 def student_detail(student_id):
+    coach_id = session.get('user_id')
+    
     with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+        # VERIFY OWNERSHIP - student must belong to this coach
+        student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', (student_id, coach_id)).fetchone()
+        
+        if not student:
+            flash('Deze student bestaat niet of behoort niet tot jouw account!')
+            return redirect(url_for('index'))
+        
         sessions = conn.execute('''
             SELECT * FROM sessions 
             WHERE student_id = ? 
@@ -554,6 +611,8 @@ def student_detail(student_id):
 @login_required
 @approved_required
 def add_student():
+    coach_id = session.get('user_id')
+    
     if request.method == 'POST':
         name = request.form['name']
         belt = request.form['belt']
@@ -562,13 +621,14 @@ def add_student():
         gym_id = request.form.get('gym_id', None)
         
         with get_db() as conn:
-            conn.execute('INSERT INTO students (name, belt, since_date, stripes, gym_id) VALUES (?, ?, ?, ?, ?)',
-                        (name, belt, since_date, stripes, gym_id))
+            conn.execute('INSERT INTO students (coach_id, name, belt, since_date, stripes, gym_id) VALUES (?, ?, ?, ?, ?, ?)',
+                        (coach_id, name, belt, since_date, stripes, gym_id))
             conn.commit()
         return redirect(url_for('index'))
     
     with get_db() as conn:
-        gyms = conn.execute('SELECT * FROM gyms ORDER BY name').fetchall()
+        # Only show THIS coach's gyms
+        gyms = conn.execute('SELECT * FROM gyms WHERE coach_id = ? ORDER BY name', (coach_id,)).fetchall()
     
     return render_template('add_student.html', gyms=gyms)
 
@@ -578,6 +638,8 @@ def add_student():
 @login_required
 @approved_required
 def add_session(student_id):
+    coach_id = session.get('user_id')
+    
     if request.method == 'POST':
         date = request.form['date']
         techniques = request.form.getlist('techniques[]')  # Multiple select
@@ -589,6 +651,12 @@ def add_session(student_id):
         techniques_str = ', '.join(techniques) if techniques else ''
         
         with get_db() as conn:
+            # Verify ownership
+            student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', (student_id, coach_id)).fetchone()
+            if not student:
+                flash('Deze student behoort niet tot jouw account!')
+                return redirect(url_for('index'))
+            
             conn.execute('''
                 INSERT INTO sessions (student_id, date, techniques, note_goed, note_focus, note_algemeen, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -638,8 +706,13 @@ def add_session(student_id):
         
         return redirect(url_for('student_detail', student_id=student_id))
     
+    # GET request - show form
     with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+        student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', (student_id, coach_id)).fetchone()
+        if not student:
+            flash('Deze student behoort niet tot jouw account!')
+            return redirect(url_for('index'))
+        
         injuries = conn.execute('''
             SELECT * FROM injuries WHERE student_id = ? AND active = 1
         ''', (student_id,)).fetchall()
@@ -665,6 +738,8 @@ def add_session(student_id):
 @login_required
 @approved_required
 def edit_student(student_id):
+    coach_id = session.get('user_id')
+    
     if request.method == 'POST':
         name = request.form['name']
         belt = request.form['belt']
@@ -676,19 +751,30 @@ def edit_student(student_id):
         gym_id = request.form.get('gym_id', None)
         
         with get_db() as conn:
+            # Verify ownership before update
+            student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', (student_id, coach_id)).fetchone()
+            if not student:
+                flash('Deze student behoort niet tot jouw account!')
+                return redirect(url_for('index'))
+            
             conn.execute('''UPDATE students 
                            SET name = ?, belt = ?, since_date = ?, stripes = ?,
                                competition_date = ?, competition_prep_active = ?, current_weight = ?, gym_id = ?
-                           WHERE id = ?''',
+                           WHERE id = ? AND coach_id = ?''',
                         (name, belt, since_date, stripes, competition_date, 
-                         competition_prep_active, current_weight, gym_id, student_id))
+                         competition_prep_active, current_weight, gym_id, student_id, coach_id))
             conn.commit()
         
         return redirect(url_for('student_detail', student_id=student_id))
     
     with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
-        gyms = conn.execute('SELECT * FROM gyms ORDER BY name').fetchall()
+        student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', (student_id, coach_id)).fetchone()
+        if not student:
+            flash('Deze student behoort niet tot jouw account!')
+            return redirect(url_for('index'))
+        
+        # Only show THIS coach's gyms
+        gyms = conn.execute('SELECT * FROM gyms WHERE coach_id = ? ORDER BY name', (coach_id,)).fetchall()
     
     return render_template('edit_student.html', student=student, gyms=gyms)
 
@@ -709,6 +795,12 @@ def delete_session(session_id, student_id):
 @login_required
 @approved_required
 def add_sparring(student_id):
+    coach_id = session.get('user_id')
+    student = verify_student_ownership(student_id, coach_id)
+    if not student:
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
     if request.method == 'POST':
         opponent = request.form['opponent_name']
         date = request.form['date']
@@ -727,9 +819,6 @@ def add_sparring(student_id):
         
         return redirect(url_for('student_detail', student_id=student_id))
     
-    with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
-    
     today = datetime.now().strftime('%Y-%m-%d')
     return render_template('add_sparring.html', student=student, today=today)
 
@@ -739,6 +828,12 @@ def add_sparring(student_id):
 @login_required
 @approved_required
 def add_injury(student_id):
+    coach_id = session.get('user_id')
+    student = verify_student_ownership(student_id, coach_id)
+    if not student:
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
     if request.method == 'POST':
         injury_type = request.form['injury_type']
         affected_area = request.form['affected_area']
@@ -756,9 +851,6 @@ def add_injury(student_id):
         
         return redirect(url_for('student_detail', student_id=student_id))
     
-    with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
-    
     today = datetime.now().strftime('%Y-%m-%d')
     return render_template('add_injury.html', student=student, today=today)
 
@@ -768,6 +860,11 @@ def add_injury(student_id):
 @login_required
 @approved_required
 def close_injury(injury_id, student_id):
+    coach_id = session.get('user_id')
+    if not verify_student_ownership(student_id, coach_id):
+        flash('Deze student behoort niet tot jouw account!')
+        return redirect(url_for('index'))
+    
     end_date = request.form.get('end_date', datetime.now().strftime('%Y-%m-%d'))
     
     with get_db() as conn:
@@ -782,10 +879,15 @@ def close_injury(injury_id, student_id):
 @login_required
 @approved_required
 def promote_student(student_id):
-    action = request.form.get('action', 'promote')
+    coach_id = session.get('user_id')
     
     with get_db() as conn:
-        student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+        student = conn.execute('SELECT * FROM students WHERE id = ? AND coach_id = ?', (student_id, coach_id)).fetchone()
+        if not student:
+            flash('Deze student behoort niet tot jouw account!')
+            return redirect(url_for('index'))
+        
+        action = request.form.get('action', 'promote')
         
         belt_order = {'white': 'blue', 'blue': 'purple', 'purple': 'brown', 'brown': 'black'}
         current_belt = student['belt']
@@ -945,8 +1047,9 @@ def stats():
 @login_required
 @approved_required
 def gyms():
+    coach_id = session.get('user_id')
     with get_db() as conn:
-        gyms = conn.execute('SELECT * FROM gyms ORDER BY name').fetchall()
+        gyms = conn.execute('SELECT * FROM gyms WHERE coach_id = ? ORDER BY name', (coach_id,)).fetchall()
     return render_template('gyms.html', gyms=gyms)
 
 @login_required
@@ -955,17 +1058,39 @@ def gyms():
 @login_required
 @approved_required
 def add_gym():
+    coach_id = session.get('user_id')
+    
     if request.method == 'POST':
         name = request.form['name']
         location = request.form.get('location', '')
         
         with get_db() as conn:
-            conn.execute('INSERT INTO gyms (name, location, created_at) VALUES (?, ?, ?)',
-                        (name, location, datetime.now().isoformat()))
+            conn.execute('INSERT INTO gyms (coach_id, name, location, created_at) VALUES (?, ?, ?, ?)',
+                        (coach_id, name, location, datetime.now().isoformat()))
             conn.commit()
         return redirect(url_for('gyms'))
     
     return render_template('add_gym.html')
+
+@app.route('/delete_gym/<int:gym_id>', methods=['POST'])
+@login_required
+@approved_required
+def delete_gym(gym_id):
+    coach_id = session.get('user_id')
+    
+    with get_db() as conn:
+        # Verify gym belongs to this coach
+        gym = conn.execute('SELECT * FROM gyms WHERE id = ? AND coach_id = ?', (gym_id, coach_id)).fetchone()
+        if not gym:
+            flash('Je kunt alleen je eigen gyms verwijderen!')
+            return redirect(url_for('gyms'))
+        
+        # Delete gym (CASCADE will delete curriculum)
+        conn.execute('DELETE FROM gyms WHERE id = ?', (gym_id,))
+        conn.commit()
+    
+    flash(f'Gym "{gym["name"]}" verwijderd!')
+    return redirect(url_for('gyms'))
 
 @login_required
 @approved_required

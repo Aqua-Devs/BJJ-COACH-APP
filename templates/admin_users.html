@@ -267,8 +267,12 @@
                                 <button type="submit" class="btn btn-reset-pw" onclick="return confirm('Wachtwoord resetten voor {{ user.email }}?')">🔑 Reset PW</button>
                             </form>
                             
+                            <form action="{{ url_for('delete_coach_data', user_id=user.id) }}" method="POST" style="display: inline;">
+                                <button type="submit" class="btn" style="background: #FF5722;" onclick="return confirm('Alle DATA van {{ user.email }} verwijderen? (Studenten, gyms, sessies, etc.) Account blijft bestaan. DIT KAN NIET ONGEDAAN WORDEN!')">💣 Wis Data</button>
+                            </form>
+                            
                             <form action="{{ url_for('delete_user', user_id=user.id) }}" method="POST" style="display: inline;">
-                                <button type="submit" class="btn btn-delete" onclick="return confirm('{{ user.email }} VERWIJDEREN? Dit kan niet ongedaan worden!')">🗑️ Verwijder</button>
+                                <button type="submit" class="btn btn-delete" onclick="return confirm('{{ user.email }} ACCOUNT VERWIJDEREN? Dit kan niet ongedaan worden!')">🗑️ Verwijder Account</button>
                             </form>
                         {% endif %}
                     </div>

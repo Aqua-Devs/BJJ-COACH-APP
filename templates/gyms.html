@@ -21,9 +21,16 @@
                     {% endif %}
                 </div>
             </div>
-            <a href="{{ url_for('curriculum', gym_id=gym.id) }}" class="btn btn-secondary" style="margin-top: 15px;">
-                📚 Curriculum Beheren
-            </a>
+            <div style="display: flex; gap: 10px; margin-top: 15px;">
+                <a href="{{ url_for('curriculum', gym_id=gym.id) }}" class="btn btn-secondary" style="flex: 1;">
+                    📚 Curriculum Beheren
+                </a>
+                <form action="{{ url_for('delete_gym', gym_id=gym.id) }}" method="POST" onsubmit="return confirm('Gym {{ gym.name }} verwijderen? Dit kan niet ongedaan worden!');" style="flex: 0;">
+                    <button type="submit" class="btn" style="background: #d32f2f; padding: 10px 20px;">
+                        🗑️
+                    </button>
+                </form>
+            </div>
         </div>
         {% endfor %}
     {% else %}
